@@ -45,13 +45,39 @@
 
 ## 运行
 
-```bash
-# 确保已安装 Python 3 和 Pygame
-pip install pygame
-# 或 Debian/Ubuntu:
-# apt install python3-pygame
+### 推荐方式（uv）
 
+```bash
+# 安装 uv（如未安装）
+# curl -LsSf https://astral.sh/uv/install.sh | sh
+# 或 brew install uv
+
+# 创建虚拟环境并安装依赖
+uv sync
+
+# 运行游戏
+uv run main.py
+```
+
+### 传统方式（pip）
+
+```bash
+# 创建虚拟环境
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 安装依赖
+pip install pygame
+
+# 运行游戏
 python main.py
+```
+
+### Debian/Ubuntu
+
+```bash
+sudo apt install python3-pygame
+python3 main.py
 ```
 
 ## 项目结构
