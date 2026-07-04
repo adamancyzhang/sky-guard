@@ -12,13 +12,16 @@ _FONT_BOLD = os.path.join(_FONT_DIR, "DejaVuSans-Bold.ttf")
 def _get_font(size, bold=False):
     """Load bundled DejaVu Sans font. Falls back to default on failure."""
     path = _FONT_BOLD if bold else _FONT_REGULAR
-    # Check that the file actually exists before passing to Pygame
-    if not os.path.isfile(path):
-        return pygame.font.Font(None, size)
-    try:
-        return pygame.font.Font(path, size)
-    except (FileNotFoundError, pygame.error):
-        return pygame.font.Font(None, size)
+    if os.path.isfile(path):
+        try:
+            font = pygame.font.Font(path, size)
+            # Verify the font is valid by rendering a test glyph
+            test_surf = font.render("A", True, (255, 255, 255))
+            if test_surf.get_width() > 0:
+                return font
+        except pygame.error:
+            pass
+    return pygame.font.Font(None, size)
 
 
 def draw_hud(screen, score, lives, level):
