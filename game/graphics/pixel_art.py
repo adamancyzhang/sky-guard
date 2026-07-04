@@ -108,3 +108,74 @@ def create_bullet_surface():
     # Add highlight effect
     pygame.draw.rect(surf, WHITE, (1, 1, BULLET_WIDTH - 2, 4))
     return surf
+
+
+# Power-up icon matrices (8x8 each)
+POWERUP_MATRICES = {
+    "shield": [
+        "01111110",
+        "11111111",
+        "11111111",
+        "11111111",
+        "11111111",
+        "11111111",
+        "11111111",
+        "01111110",
+    ],
+    "rapid": [
+        "00100100",
+        "00100100",
+        "00111100",
+        "00011000",
+        "00011000",
+        "00111100",
+        "00100100",
+        "00100100",
+    ],
+    "triple": [
+        "00100010",
+        "00100010",
+        "00111110",
+        "00011100",
+        "00011100",
+        "00111110",
+        "00100010",
+        "00100010",
+    ],
+    "bomb": [
+        "00011000",
+        "00111100",
+        "01111110",
+        "11111111",
+        "11111111",
+        "01111110",
+        "00111100",
+        "00011000",
+    ],
+    "speed": [
+        "00011000",
+        "00111000",
+        "01111111",
+        "00011110",
+        "00001100",
+        "00011000",
+        "00110000",
+        "01100000",
+    ],
+    "life": [
+        "01100110",
+        "11111111",
+        "11111111",
+        "11111111",
+        "01111110",
+        "00111100",
+        "00011000",
+        "00000000",
+    ],
+}
+
+
+def create_powerup_surface(power_type, color, scale=3):
+    """Create a Surface for a power-up icon."""
+    matrix = POWERUP_MATRICES.get(power_type, POWERUP_MATRICES["shield"])
+    return matrix_to_surface(matrix, color, scale)

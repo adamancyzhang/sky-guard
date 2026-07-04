@@ -1,8 +1,11 @@
 # game/settings.py
 
-# Display settings
+# Display settings (logical)
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 720
+SCALE_FACTOR = 2  # renders at 960x1440; change to 1 for original size
+DISPLAY_WIDTH = SCREEN_WIDTH * SCALE_FACTOR
+DISPLAY_HEIGHT = SCREEN_HEIGHT * SCALE_FACTOR
 FPS = 60
 WINDOW_TITLE = "Sky Guard"
 
@@ -59,3 +62,39 @@ DIFFICULTY_STEPS = {
 # Starfield background
 STAR_COUNT = 60
 STAR_SPEED = 2
+
+# Power-up settings
+POWERUP_DROP_CHANCE = 0.15        # 15% chance per enemy kill
+POWERUP_SPEED = 2                  # fall speed
+POWERUP_TYPES = {
+    "shield": {
+        "color": (50, 50, 255),
+        "duration": 5 * FPS,       # 5 seconds in frames
+        "description_key": "item_shield",
+    },
+    "rapid": {
+        "color": ORANGE,
+        "duration": 8 * FPS,
+        "description_key": "item_rapid",
+    },
+    "triple": {
+        "color": PURPLE,
+        "duration": 8 * FPS,
+        "description_key": "item_triple",
+    },
+    "bomb": {
+        "color": RED,
+        "duration": 0,             # instant, no timer
+        "description_key": "item_bomb",
+    },
+    "speed": {
+        "color": GREEN,
+        "duration": 8 * FPS,
+        "description_key": "item_speed",
+    },
+    "life": {
+        "color": (255, 105, 180),  # pink
+        "duration": 0,             # instant
+        "description_key": "item_life",
+    },
+}

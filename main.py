@@ -11,20 +11,22 @@ from game.systems.spawner import Spawner
 from game.systems.collision import (
     check_bullet_enemy_collisions,
     check_player_enemy_collisions,
+    check_player_powerup_collisions,
 )
-from game.graphics.hud import draw_hud, draw_menu_screen, draw_game_over_screen
+from game.graphics.hud import draw_hud, draw_menu_screen, draw_game_over_screen, draw_help_screen
 from game.sounds.sound_manager import SoundManager
 
 
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.screen = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
         pygame.display.set_caption(WINDOW_TITLE)
+        self.virtual_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
         self.state = GameState()
         self.running = True
-        self.menu_selection = 0  # 0 = START GAME, 1 = EXIT
+        self.menu_selection = 0  # 0 = START GAME, 1 = EXIT (HELP added later)
 
         # Sprite groups
         self.all_sprites = pygame.sprite.Group()
@@ -32,6 +34,7 @@ class Game:
         self.bullets_group = pygame.sprite.Group()
         self.enemies_group = pygame.sprite.Group()
         self.explosions_group = pygame.sprite.Group()
+        self.powerups_group = pygame.sprite.Group()
 
         # Game systems
         self.player = Player()
@@ -65,17 +68,28 @@ class Game:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if self.state.is_menu():
+                    # 3 menu items: START, HELP, EXIT
+                    menu_count = 3
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
-                        self.menu_selection = (self.menu_selection - 1) % 2
+                        self.menu_selection = (self.menu_selection - 1) % menu_count
                         self.sound_manager.play("shoot")
                     elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
-                        self.menu_selection = (self.menu_selection + 1) % 2
+                        self.menu_selection = (self.menu_selection + 1) % menu_count
+                        self.sound_manager.play("shoot")
+                    elif event.key == pygame.K_l:
+                        from game.l10n import L10n
+                        L10n.toggle()
                         self.sound_manager.play("shoot")
                     elif event.key == pygame.K_RETURN:
                         if self.menu_selection == 0:
                             self._start_game()
+                        elif self.menu_selection == 1:
+                            self.state.set(GameState.HELP)
                         else:
                             self.running = False
+                elif self.state.is_help():
+                    if event.key == pygame.K_RETURN or event.key == pygame.K_ESCAPE:
+                        self.state.set(GameState.MENU)
                 elif self.state.is_game_over():
                     if event.key == pygame.K_RETURN:
                         self._start_game()
@@ -91,6 +105,7 @@ class Game:
         self.bullets_group.empty()
         self.enemies_group.empty()
         self.explosions_group.empty()
+        self.powerups_group.empty()
         self.player.reset()
         self.spawner.reset()
 
@@ -102,15 +117,29 @@ class Game:
             self.bullets_group.update()
             self.enemies_group.update()
             self.explosions_group.update()
+            self.powerups_group.update()
             self.spawner.update(self.enemies_group, self.player.score)
 
-            # Collision detection
+            # Collision detection — pass powerups_group for drops
             score = check_bullet_enemy_collisions(
-                self.bullets_group, self.enemies_group, self.explosions_group
+                self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group
             )
             if score > 0:
                 self.player.score += score
                 self.sound_manager.play("explosion")
+
+            # Power-up collection
+            collected_type = check_player_powerup_collisions(self.player, self.powerups_group)
+            if collected_type:
+                if collected_type == "bomb":
+                    # Bomb clears all enemies
+                    for enemy in self.enemies_group:
+                        Explosion(enemy.rect.centerx, enemy.rect.centery, self.explosions_group)
+                    self.enemies_group.empty()
+                    self.sound_manager.play("explosion")
+                else:
+                    self.player.apply_powerup(collected_type)
+                    self.sound_manager.play("level_up")
 
             hit = check_player_enemy_collisions(
                 self.player, self.enemies_group, self.explosions_group
@@ -124,9 +153,24 @@ class Game:
     def _handle_shooting(self):
         keys = pygame.key.get_pressed()
         if (keys[pygame.K_SPACE] or keys[pygame.K_z]) and self.player.can_shoot():
+            # Determine cooldown — rapid fire halves it
+            cooldown = PLAYER_SHOOT_COOLDOWN
+            if self.player.has_powerup("rapid"):
+                cooldown = max(3, PLAYER_SHOOT_COOLDOWN // 2)
+
+            self.player.shoot()
+            self.player.shoot_cooldown = cooldown  # override for rapid fire
+
+            # Main bullet
             bullet = Bullet(self.player.rect.centerx, self.player.rect.top)
             self.bullets_group.add(bullet)
-            self.player.shoot()
+
+            # Triple shot — add 2 angled bullets
+            if self.player.has_powerup("triple"):
+                bullet_left = Bullet(self.player.rect.centerx - 12, self.player.rect.top)
+                bullet_right = Bullet(self.player.rect.centerx + 12, self.player.rect.top)
+                self.bullets_group.add(bullet_left, bullet_right)
+
             self.sound_manager.play("shoot")
 
     def _update_stars(self):
@@ -142,28 +186,37 @@ class Game:
             pygame.draw.circle(screen, (c, c, c), (int(star["x"]), int(star["y"])), star["size"])
 
     def draw(self):
-        self.screen.fill(BLACK)
+        # Clear virtual surface
+        self.virtual_surf.fill(BLACK)
 
         if self.state.is_menu():
-            draw_menu_screen(self.screen, self.menu_selection)
+            draw_menu_screen(self.virtual_surf, self.menu_selection)
+        elif self.state.is_help():
+            draw_help_screen(self.virtual_surf)
         elif self.state.is_playing():
-            self._draw_stars(self.screen)
-            self.enemies_group.draw(self.screen)
-            self.bullets_group.draw(self.screen)
+            self._draw_stars(self.virtual_surf)
+            self.enemies_group.draw(self.virtual_surf)
+            self.bullets_group.draw(self.virtual_surf)
+            self.powerups_group.draw(self.virtual_surf)
             self.player_group.add(self.player)
-            self.player_group.draw(self.screen)
+            self.player_group.draw(self.virtual_surf)
             # Explosions need custom draw
             for explosion in self.explosions_group:
-                explosion.draw(self.screen)
+                explosion.draw(self.virtual_surf)
             draw_hud(
-                self.screen,
+                self.virtual_surf,
                 self.player.score,
                 self.player.lives,
                 self.spawner.current_level,
+                self.player.active_powerups,
             )
         elif self.state.is_game_over():
-            self._draw_stars(self.screen)
-            draw_game_over_screen(self.screen, self.player.score)
+            self._draw_stars(self.virtual_surf)
+            draw_game_over_screen(self.virtual_surf, self.player.score)
+
+        # Scale virtual surface to display window
+        scaled = pygame.transform.scale(self.virtual_surf, (DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        self.screen.blit(scaled, (0, 0))
 
 
 if __name__ == "__main__":

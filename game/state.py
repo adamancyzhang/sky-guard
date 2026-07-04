@@ -5,6 +5,7 @@ class GameState:
     MENU = "menu"
     PLAYING = "playing"
     GAME_OVER = "game_over"
+    HELP = "help"
 
     def __init__(self):
         self.current = GameState.MENU
@@ -22,3 +23,6 @@ class GameState:
 
     def is_game_over(self):
         return self.current == GameState.GAME_OVER
+
+    def is_help(self):
+        return self.current == GameState.HELP
