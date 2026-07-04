@@ -20,7 +20,19 @@ from game.sounds.sound_manager import SoundManager
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        # Detect screen size for initial window size
+        info = pygame.display.Info()
+        max_w, max_h = int(info.current_w * 0.9), int(info.current_h * 0.9)
+        scale_w = max_w // SCREEN_WIDTH
+        scale_h = max_h // SCREEN_HEIGHT
+        self.scale_factor = max(1, min(scale_w, scale_h))
+        self.display_width = SCREEN_WIDTH * self.scale_factor
+        self.display_height = SCREEN_HEIGHT * self.scale_factor
+
+        self.screen = pygame.display.set_mode(
+            (self.display_width, self.display_height),
+            pygame.RESIZABLE,
+        )
         pygame.display.set_caption(WINDOW_TITLE)
         self.virtual_surf = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
         self.clock = pygame.time.Clock()
@@ -66,6 +78,8 @@ class Game:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
+            elif event.type == pygame.VIDEORESIZE:
+                self._handle_resize(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
                 if self.state.is_menu():
                     # 3 menu items: START, HELP, EXIT
@@ -150,6 +164,19 @@ class Game:
                     self.state.set(GameState.GAME_OVER)
                     self.sound_manager.play("game_over")
 
+    def _handle_resize(self, new_w, new_h):
+        """Maintain 2:3 aspect ratio on window resize."""
+        # Calculate the largest integer scale that fits in the new window
+        scale_w = new_w // SCREEN_WIDTH
+        scale_h = new_h // SCREEN_HEIGHT
+        self.scale_factor = max(1, min(scale_w, scale_h))
+        self.display_width = SCREEN_WIDTH * self.scale_factor
+        self.display_height = SCREEN_HEIGHT * self.scale_factor
+        self.screen = pygame.display.set_mode(
+            (self.display_width, self.display_height),
+            pygame.RESIZABLE,
+        )
+
     def _handle_shooting(self):
         keys = pygame.key.get_pressed()
         if (keys[pygame.K_SPACE] or keys[pygame.K_z]) and self.player.can_shoot():
@@ -215,7 +242,7 @@ class Game:
             draw_game_over_screen(self.virtual_surf, self.player.score)
 
         # Scale virtual surface to display window
-        scaled = pygame.transform.scale(self.virtual_surf, (DISPLAY_WIDTH, DISPLAY_HEIGHT))
+        scaled = pygame.transform.scale(self.virtual_surf, (self.display_width, self.display_height))
         self.screen.blit(scaled, (0, 0))
 
 

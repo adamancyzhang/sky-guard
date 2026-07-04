@@ -1,11 +1,8 @@
 # game/settings.py
 
-# Display settings (logical)
+# Display settings (logical resolution — actual window size is auto-calculated)
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 720
-SCALE_FACTOR = 2  # renders at 960x1440; change to 1 for original size
-DISPLAY_WIDTH = SCREEN_WIDTH * SCALE_FACTOR
-DISPLAY_HEIGHT = SCREEN_HEIGHT * SCALE_FACTOR
 FPS = 60
 WINDOW_TITLE = "Sky Guard"
 
