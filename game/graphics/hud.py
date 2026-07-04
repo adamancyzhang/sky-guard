@@ -14,7 +14,7 @@ def draw_hud(screen, score, lives, level):
     screen.blit(level_surf, (10, 45))
 
     # Lives (top-right)
-    lives_text = "LIVES: " + "♥" * lives + "♡" * (PLAYER_MAX_LIVES - lives)
+    lives_text = "LIVES: " + "*" * lives + "." * (PLAYER_MAX_LIVES - lives)
     lives_surf = font.render(lives_text, True, RED)
     lives_rect = lives_surf.get_rect()
     lives_rect.topright = (SCREEN_WIDTH - 10, 10)
