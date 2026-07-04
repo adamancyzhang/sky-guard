@@ -14,6 +14,6 @@ class Bullet(pygame.sprite.Sprite):
 
     def update(self, *args, **kwargs):
         self.rect.y += BULLET_SPEED
-        # 超出屏幕则销毁
+        # Destroy if off-screen
         if self.rect.bottom < 0:
             self.kill()

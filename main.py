@@ -24,20 +24,21 @@ class Game:
         self.clock = pygame.time.Clock()
         self.state = GameState()
         self.running = True
+        self.menu_selection = 0  # 0 = START GAME, 1 = EXIT
 
-        # 精灵组
+        # Sprite groups
         self.all_sprites = pygame.sprite.Group()
         self.player_group = pygame.sprite.GroupSingle()
         self.bullets_group = pygame.sprite.Group()
         self.enemies_group = pygame.sprite.Group()
         self.explosions_group = pygame.sprite.Group()
 
-        # 游戏系统
+        # Game systems
         self.player = Player()
         self.spawner = Spawner()
         self.sound_manager = SoundManager()
 
-        # 星空
+        # Starfield
         self.stars = []
         for _ in range(STAR_COUNT):
             self.stars.append({
@@ -64,8 +65,17 @@ class Game:
                 self.running = False
             elif event.type == pygame.KEYDOWN:
                 if self.state.is_menu():
-                    if event.key == pygame.K_RETURN:
-                        self._start_game()
+                    if event.key == pygame.K_UP or event.key == pygame.K_w:
+                        self.menu_selection = (self.menu_selection - 1) % 2
+                        self.sound_manager.play("shoot")
+                    elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                        self.menu_selection = (self.menu_selection + 1) % 2
+                        self.sound_manager.play("shoot")
+                    elif event.key == pygame.K_RETURN:
+                        if self.menu_selection == 0:
+                            self._start_game()
+                        else:
+                            self.running = False
                 elif self.state.is_game_over():
                     if event.key == pygame.K_RETURN:
                         self._start_game()
@@ -76,9 +86,8 @@ class Game:
                         self.running = False
 
     def _start_game(self):
-        """重置并开始新游戏"""
+        """Reset and start a new game."""
         self.state.set(GameState.PLAYING)
-        # 清空所有精灵
         self.bullets_group.empty()
         self.enemies_group.empty()
         self.explosions_group.empty()
@@ -95,7 +104,7 @@ class Game:
             self.explosions_group.update()
             self.spawner.update(self.enemies_group, self.player.score)
 
-            # 碰撞检测
+            # Collision detection
             score = check_bullet_enemy_collisions(
                 self.bullets_group, self.enemies_group, self.explosions_group
             )
@@ -136,14 +145,14 @@ class Game:
         self.screen.fill(BLACK)
 
         if self.state.is_menu():
-            draw_menu_screen(self.screen)
+            draw_menu_screen(self.screen, self.menu_selection)
         elif self.state.is_playing():
             self._draw_stars(self.screen)
             self.enemies_group.draw(self.screen)
             self.bullets_group.draw(self.screen)
             self.player_group.add(self.player)
             self.player_group.draw(self.screen)
-            # 爆炸需要自定义 draw
+            # Explosions need custom draw
             for explosion in self.explosions_group:
                 explosion.draw(self.screen)
             draw_hud(

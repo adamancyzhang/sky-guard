@@ -1,7 +1,7 @@
 # game/state.py
 
 class GameState:
-    """有限状态机管理游戏状态"""
+    """Finite state machine for game state management."""
     MENU = "menu"
     PLAYING = "playing"
     GAME_OVER = "game_over"

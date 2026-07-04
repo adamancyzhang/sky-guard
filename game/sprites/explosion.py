@@ -31,7 +31,7 @@ class Explosion(pygame.sprite.Sprite):
             if p["life"] > 0:
                 p["x"] += p["vx"]
                 p["y"] += p["vy"]
-                p["vy"] += 0.2  # 重力
+                p["vy"] += 0.2  # gravity
                 p["life"] -= 1
                 p["size"] = max(1, p["size"] - 0.2)
                 alive = True

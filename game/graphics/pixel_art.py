@@ -2,10 +2,10 @@
 import pygame
 from game.settings import *
 
-# 像素画使用 0/1 矩阵表示，"1" = 填充色，"0" = 透明
-# 每个矩阵将被缩放到实际精灵尺寸
+# Pixel art uses 0/1 matrices: "1" = fill color, "0" = transparent
+# Each matrix will be scaled to actual sprite size
 
-# 玩家飞机 8x10 像素矩阵
+# Player ship 8x10 pixel matrix
 PLAYER_MATRIX = [
     "00011000",
     "00011000",
@@ -19,7 +19,7 @@ PLAYER_MATRIX = [
     "00100100",
 ]
 
-# 基础敌机 8x8 像素矩阵
+# Basic enemy 8x8 pixel matrix
 BASIC_ENEMY_MATRIX = [
     "00111100",
     "01100110",
@@ -31,7 +31,7 @@ BASIC_ENEMY_MATRIX = [
     "00111100",
 ]
 
-# 快速敌机 8x6
+# Fast enemy 8x6
 FAST_ENEMY_MATRIX = [
     "00011000",
     "00111100",
@@ -41,7 +41,7 @@ FAST_ENEMY_MATRIX = [
     "00011000",
 ]
 
-# 坦克敌机 10x10
+# Tank enemy 10x10
 TANK_ENEMY_MATRIX = [
     "0000110000",
     "0001111000",
@@ -57,7 +57,7 @@ TANK_ENEMY_MATRIX = [
 
 
 def scale_matrix(matrix, scale):
-    """将像素矩阵缩放到目标尺寸"""
+    """Scale a pixel matrix to a target size."""
     rows = len(matrix)
     cols = len(matrix[0])
     scaled = []
@@ -71,7 +71,7 @@ def scale_matrix(matrix, scale):
 
 
 def matrix_to_surface(matrix, color, scale=3):
-    """将像素矩阵转换为 Pygame Surface"""
+    """Convert a pixel matrix to a Pygame Surface."""
     scaled = scale_matrix(matrix, scale)
     h = len(scaled)
     w = len(scaled[0])
@@ -84,12 +84,12 @@ def matrix_to_surface(matrix, color, scale=3):
 
 
 def create_player_ship(scale=3):
-    """创建玩家飞机 Surface"""
+    """Create the player ship Surface."""
     return matrix_to_surface(PLAYER_MATRIX, CYAN, scale)
 
 
 def create_enemy_surface(enemy_type, scale=3):
-    """根据敌机类型创建对应的 Surface"""
+    """Create a Surface for a given enemy type."""
     mapping = {
         "basic": (BASIC_ENEMY_MATRIX, RED),
         "fast": (FAST_ENEMY_MATRIX, PURPLE),
@@ -102,9 +102,9 @@ def create_enemy_surface(enemy_type, scale=3):
 
 
 def create_bullet_surface():
-    """创建子弹 Surface"""
+    """Create the bullet Surface."""
     surf = pygame.Surface((BULLET_WIDTH, BULLET_HEIGHT), pygame.SRCALPHA)
     pygame.draw.rect(surf, BULLET_COLOR, (0, 0, BULLET_WIDTH, BULLET_HEIGHT))
-    # 添加高光效果
+    # Add highlight effect
     pygame.draw.rect(surf, WHITE, (1, 1, BULLET_WIDTH - 2, 4))
     return surf

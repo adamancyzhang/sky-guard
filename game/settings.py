@@ -1,12 +1,12 @@
 # game/settings.py
 
-# 显示设置
+# Display settings
 SCREEN_WIDTH = 480
 SCREEN_HEIGHT = 720
 FPS = 60
-WINDOW_TITLE = "像素飞机大战"
+WINDOW_TITLE = "Sky Guard"
 
-# 颜色（RGB）
+# Colors (RGB)
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 RED = (255, 50, 50)
@@ -19,21 +19,21 @@ DARK_GRAY = (30, 30, 30)
 LIGHT_GRAY = (150, 150, 150)
 ORANGE = (255, 150, 50)
 
-# 玩家设置
+# Player settings
 PLAYER_SPEED = 5
 PLAYER_MAX_LIVES = 3
-PLAYER_SHOOT_COOLDOWN = 15  # 帧数间隔
-PLAYER_INVINCIBLE_FRAMES = 90  # 受伤后无敌帧
+PLAYER_SHOOT_COOLDOWN = 15  # frames between shots
+PLAYER_INVINCIBLE_FRAMES = 90  # invincibility after being hit
 
-# 子弹设置
-BULLET_SPEED = -10  # 负值=向上
+# Bullet settings
+BULLET_SPEED = -10  # negative = upward
 BULLET_WIDTH = 4
 BULLET_HEIGHT = 12
 BULLET_COLOR = YELLOW
 
-# 敌机设置
+# Enemy settings
 ENEMY_BASE_SPEED = 3
-ENEMY_SPAWN_INTERVAL = 60  # 帧数间隔（游戏会随分数减少）
+ENEMY_SPAWN_INTERVAL = 60  # frames between spawns (decreases with score)
 ENEMY_MIN_SPAWN_INTERVAL = 15
 ENEMY_TYPES = {
     "basic": {"speed": 3, "hp": 1, "score": 10, "color": RED},
@@ -41,12 +41,12 @@ ENEMY_TYPES = {
     "tank":  {"speed": 2, "hp": 3, "score": 30, "color": GREEN},
 }
 
-# 爆炸效果
+# Explosion effects
 EXPLOSION_FRAMES = 12
 EXPLOSION_PARTICLES = 8
 
-# 难度
-SCORE_PER_LEVEL = 200  # 每多少分增加一级难度
+# Difficulty
+SCORE_PER_LEVEL = 200  # score needed per level increase
 DIFFICULTY_STEPS = {
     0: {"spawn_interval": 60, "enemy_types": ["basic"]},
     1: {"spawn_interval": 50, "enemy_types": ["basic", "fast"]},
@@ -56,6 +56,6 @@ DIFFICULTY_STEPS = {
     5: {"spawn_interval": 25, "enemy_types": ["basic", "fast", "tank"]},
 }
 
-# 背景星空
+# Starfield background
 STAR_COUNT = 60
 STAR_SPEED = 2

@@ -13,27 +13,27 @@ class Enemy(pygame.sprite.Sprite):
         self.image = create_enemy_surface(enemy_type, scale=3)
         self.rect = self.image.get_rect()
         self.rect.x = random.randint(0, SCREEN_WIDTH - self.rect.width)
-        self.rect.y = -self.rect.height  # 从顶部外进入
+        self.rect.y = -self.rect.height  # spawn from above
         self.speed = config["speed"]
         self.hp = config["hp"]
         self.score_value = config["score"]
-        # 小幅左右摆动
+        # Slight lateral wobble
         self.wobble = random.uniform(-1, 1)
         self.wobble_speed = random.uniform(0.02, 0.05)
 
     def update(self, *args, **kwargs):
         self.rect.y += self.speed
-        # 左右摆动
+        # Lateral wobble
         self.wobble += self.wobble_speed
         self.rect.x += self.wobble * 0.5
-        # 边界限制
+        # Boundary clamp
         self.rect.x = max(0, min(self.rect.x, SCREEN_WIDTH - self.rect.width))
-        # 超出屏幕则销毁
+        # Destroy if off-screen
         if self.rect.top > SCREEN_HEIGHT:
             self.kill()
 
     def take_damage(self, amount=1):
         self.hp -= amount
-        # 受击闪烁
+        # Hit flash
         self.image.set_alpha(100)
         return self.hp <= 0

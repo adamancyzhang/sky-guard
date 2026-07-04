@@ -31,7 +31,7 @@ class Player(pygame.sprite.Sprite):
             self.rect.y -= self.speed
         if keys_pressed[pygame.K_DOWN] or keys_pressed[pygame.K_s]:
             self.rect.y += self.speed
-        # 边界限制
+        # Boundary clamp
         self.rect.clamp_ip(pygame.Rect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT))
 
     def _handle_shoot_cooldown(self):
@@ -41,7 +41,7 @@ class Player(pygame.sprite.Sprite):
     def _handle_invincibility(self):
         if self.invincible_timer > 0:
             self.invincible_timer -= 1
-            # 闪烁效果
+            # Blinking effect
             alpha = 128 if (self.invincible_timer // 6) % 2 == 0 else 255
             self.image.set_alpha(alpha)
         else:
@@ -59,12 +59,12 @@ class Player(pygame.sprite.Sprite):
         self.lives -= 1
         if self.lives > 0:
             self.invincible_timer = PLAYER_INVINCIBLE_FRAMES
-        return True  # 被击中
+        return True  # was hit
 
     def reset(self):
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.bottom = SCREEN_HEIGHT - 30
         self.lives = PLAYER_MAX_LIVES
         self.score = 0
-        self.invincible_timer = PLAYER_INVINCIBLE_FRAMES  # 重生保护
+        self.invincible_timer = PLAYER_INVINCIBLE_FRAMES  # respawn protection
         self.shoot_cooldown = 0

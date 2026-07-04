@@ -11,7 +11,7 @@ class Spawner:
 
     def update(self, enemies_group, score):
         self.timer += 1
-        # 根据分数计算当前难度等级
+        # Calculate difficulty level from score
         self.current_level = min(score // SCORE_PER_LEVEL, len(DIFFICULTY_STEPS) - 1)
         config = DIFFICULTY_STEPS[self.current_level]
 

@@ -9,13 +9,13 @@ from game.sprites.bullet import Bullet
 from game.sprites.enemy import Enemy
 from game.systems.collision import check_bullet_enemy_collisions
 
-# Pygame 必须有 display 才能创建 Surface
+# Pygame needs a display to create Surfaces
 os.environ["SDL_VIDEODRIVER"] = "dummy"
 pygame.display.set_mode((1, 1))
 
 
 def test_bullet_hits_enemy():
-    """测试子弹与敌机碰撞产生分数"""
+    """Test that a bullet hitting an enemy awards points."""
     bullets = pygame.sprite.Group()
     enemies = pygame.sprite.Group()
     explosions = pygame.sprite.Group()
@@ -34,14 +34,14 @@ def test_bullet_hits_enemy():
 
 
 def test_bullet_misses_enemy():
-    """测试子弹未命中不产生分数"""
+    """Test that a missing bullet awards no points."""
     bullets = pygame.sprite.Group()
     enemies = pygame.sprite.Group()
     explosions = pygame.sprite.Group()
 
     bullet = Bullet(100, 200)
     enemy = Enemy("basic")
-    enemy.rect.center = (300, 300)  # 不同位置
+    enemy.rect.center = (300, 300)  # different position
     bullets.add(bullet)
     enemies.add(enemy)
 
@@ -51,7 +51,7 @@ def test_bullet_misses_enemy():
 
 
 def test_tank_enemy_needs_multiple_hits():
-    """测试坦克敌机需要多次击中"""
+    """Test that tank enemies require multiple hits to destroy."""
     bullets = pygame.sprite.Group()
     enemies = pygame.sprite.Group()
     explosions = pygame.sprite.Group()
@@ -60,7 +60,7 @@ def test_tank_enemy_needs_multiple_hits():
     enemy.rect.center = (100, 200)
     enemies.add(enemy)
 
-    # 第一次击中
+    # First hit
     bullet1 = Bullet(100, 200)
     bullets.add(bullet1)
     score = check_bullet_enemy_collisions(bullets, enemies, explosions)
@@ -68,14 +68,14 @@ def test_tank_enemy_needs_multiple_hits():
     assert len(enemies) == 1, "Tank should still be alive"
     print("PASS: test_tank_enemy_needs_multiple_hits (1st hit)")
 
-    # 第二次击中
+    # Second hit
     bullet2 = Bullet(100, 200)
     bullets.add(bullet2)
     score = check_bullet_enemy_collisions(bullets, enemies, explosions)
     assert score == 0, f"Tank should not die from 2 hits, got score {score}"
     print("PASS: test_tank_enemy_needs_multiple_hits (2nd hit)")
 
-    # 第三次击中 -> 击毁
+    # Third hit -> destroyed
     bullet3 = Bullet(100, 200)
     bullets.add(bullet3)
     score = check_bullet_enemy_collisions(bullets, enemies, explosions)

@@ -37,7 +37,7 @@ class SoundManager:
                 val = 2.0 * (freq * t - math.floor(freq * t + 0.5))
             else:
                 val = 0
-            # 淡出
+            # Fade out
             fade = 1.0 - (i / n_samples)
             buf[i] = int(val * 8000 * fade)
         return pygame.mixer.Sound(buffer=buf)
