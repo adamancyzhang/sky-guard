@@ -3,10 +3,12 @@ import pygame
 import os
 from game.settings import *
 
-# Path to bundled DejaVu Sans font (OFL licensed, Unicode-safe)
+# Path to bundled fonts
 _FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "fonts")
-_FONT_REGULAR = os.path.join(_FONT_DIR, "DejaVuSans.ttf")
-_FONT_BOLD = os.path.join(_FONT_DIR, "DejaVuSans-Bold.ttf")
+_FONT_CJK_REGULAR = os.path.join(_FONT_DIR, "SourceHanSansSC-Regular.otf")
+_FONT_CJK_BOLD = os.path.join(_FONT_DIR, "SourceHanSansSC-Bold.otf")
+_FONT_DEJAVU_REGULAR = os.path.join(_FONT_DIR, "DejaVuSans.ttf")
+_FONT_DEJAVU_BOLD = os.path.join(_FONT_DIR, "DejaVuSans-Bold.ttf")
 
 # Safe content area
 _MARGIN = 15
@@ -14,17 +16,28 @@ _CONTENT_W = SCREEN_WIDTH - _MARGIN * 2  # 450px usable
 
 
 def _get_font(size, bold=False):
-    """Load bundled DejaVu Sans font. Falls back to default on failure."""
-    path = _FONT_BOLD if bold else _FONT_REGULAR
-    if os.path.isfile(path):
+    """Load CJK-capable font (Source Han Sans SC) with DejaVu Sans fallback."""
+    # Prefer CJK font (supports both Chinese and English glyphs)
+    primary = _FONT_CJK_BOLD if bold else _FONT_CJK_REGULAR
+    if os.path.isfile(primary):
         try:
-            font = pygame.font.Font(path, size)
-            # Verify the font is valid by rendering a test glyph
+            font = pygame.font.Font(primary, size)
+            test_surf = font.render("中", True, (255, 255, 255))
+            if test_surf.get_width() > 0:
+                return font
+        except pygame.error:
+            pass
+    # Fallback to DejaVu Sans
+    fallback = _FONT_DEJAVU_BOLD if bold else _FONT_DEJAVU_REGULAR
+    if os.path.isfile(fallback):
+        try:
+            font = pygame.font.Font(fallback, size)
             test_surf = font.render("A", True, (255, 255, 255))
             if test_surf.get_width() > 0:
                 return font
         except pygame.error:
             pass
+    # Last resort: default font
     return pygame.font.Font(None, size)
 
 
