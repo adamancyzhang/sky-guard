@@ -1,10 +1,25 @@
 # game/graphics/hud.py
 import pygame
+import os
 from game.settings import *
+
+# Path to bundled DejaVu Sans font (OFL licensed, Unicode-safe)
+_FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "assets", "fonts")
+_FONT_REGULAR = os.path.join(_FONT_DIR, "DejaVuSans.ttf")
+_FONT_BOLD = os.path.join(_FONT_DIR, "DejaVuSans-Bold.ttf")
+
+
+def _get_font(size, bold=False):
+    """Load bundled DejaVu Sans font. Falls back to default on failure."""
+    path = _FONT_BOLD if bold else _FONT_REGULAR
+    try:
+        return pygame.font.Font(path, size)
+    except (FileNotFoundError, pygame.error):
+        return pygame.font.Font(None, size)
 
 
 def draw_hud(screen, score, lives, level):
-    font = pygame.font.Font(None, 36)
+    font = _get_font(36)
     # Score (top-left)
     score_surf = font.render(f"SCORE: {score}", True, WHITE)
     screen.blit(score_surf, (10, 10))
@@ -14,7 +29,7 @@ def draw_hud(screen, score, lives, level):
     screen.blit(level_surf, (10, 45))
 
     # Lives (top-right)
-    lives_text = "LIVES: " + "*" * lives + "." * (PLAYER_MAX_LIVES - lives)
+    lives_text = "LIVES: " + "♥" * lives + "♡" * (PLAYER_MAX_LIVES - lives)
     lives_surf = font.render(lives_text, True, RED)
     lives_rect = lives_surf.get_rect()
     lives_rect.topright = (SCREEN_WIDTH - 10, 10)
@@ -26,21 +41,21 @@ def draw_menu_screen(screen, selected):
     screen.fill(BLACK)
 
     # Title
-    title_font = pygame.font.Font(None, 72)
+    title_font = _get_font(72, bold=True)
     title = title_font.render("SKY GUARD", True, CYAN)
     title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4))
     screen.blit(title, title_rect)
 
     # Subtitle / tagline
-    sub_font = pygame.font.Font(None, 24)
+    sub_font = _get_font(24)
     sub = sub_font.render("~ PIXEL SHOOTER ~", True, LIGHT_GRAY)
     sub_rect = sub.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4 + 50))
     screen.blit(sub, sub_rect)
 
     # Menu items
     items = ["START GAME", "EXIT"]
-    item_font = pygame.font.Font(None, 48)
-    item_font_small = pygame.font.Font(None, 36)
+    item_font = _get_font(48, bold=True)
+    item_font_small = _get_font(36)
 
     for i, item in enumerate(items):
         if i == selected:
@@ -59,7 +74,7 @@ def draw_menu_screen(screen, selected):
         screen.blit(surf, rect)
 
     # Controls hint
-    hint_font = pygame.font.Font(None, 24)
+    hint_font = _get_font(24)
     hint = hint_font.render("UP / DOWN to select  |  ENTER to confirm", True, DARK_GRAY)
     hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT * 3 // 4 + 30))
     screen.blit(hint, hint_rect)
@@ -69,8 +84,8 @@ def draw_game_over_screen(screen, score):
     """Draw the game over screen."""
     screen.fill(BLACK)
 
-    font_large = pygame.font.Font(None, 64)
-    font_medium = pygame.font.Font(None, 36)
+    font_large = _get_font(64, bold=True)
+    font_medium = _get_font(36)
 
     title = font_large.render("GAME OVER", True, RED)
     title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
