@@ -16,29 +16,73 @@ _CONTENT_W = SCREEN_WIDTH - _MARGIN * 2  # 450px usable
 
 
 def _get_font(size, bold=False):
-    """Load CJK-capable font (Source Han Sans SC) with DejaVu Sans fallback."""
-    # Prefer CJK font (supports both Chinese and English glyphs)
-    primary = _FONT_CJK_BOLD if bold else _FONT_CJK_REGULAR
-    if os.path.isfile(primary):
-        try:
-            font = pygame.font.Font(primary, size)
-            test_surf = font.render("中", True, (255, 255, 255))
-            if test_surf.get_width() > 0:
-                return font
-        except pygame.error:
-            pass
-    # Fallback to DejaVu Sans
-    fallback = _FONT_DEJAVU_BOLD if bold else _FONT_DEJAVU_REGULAR
-    if os.path.isfile(fallback):
-        try:
-            font = pygame.font.Font(fallback, size)
-            test_surf = font.render("A", True, (255, 255, 255))
-            if test_surf.get_width() > 0:
-                return font
-        except pygame.error:
-            pass
-    # Last resort: default font
+    """Load CJK-capable font (Source Han Sans SC) with multiple fallbacks.
+
+    Tries fonts in order until one can render a test glyph.
+    Falls back to DejaVu Sans, then system default.
+    """
+    candidates = [
+        (_FONT_CJK_BOLD if bold else _FONT_CJK_REGULAR, "\u4e2d"),
+        (_FONT_DEJAVU_BOLD if bold else _FONT_DEJAVU_REGULAR, "A"),
+    ]
+    for path, test_char in candidates:
+        if os.path.isfile(path):
+            try:
+                font = pygame.font.Font(path, size)
+                if font.render(test_char, True, (255, 255, 255)).get_width() > 0:
+                    return font
+            except pygame.error:
+                pass
     return pygame.font.Font(None, size)
+
+
+def _render_text(text, size, color, bold=False):
+    """Render text with automatic multi-font fallback per character.
+
+    Primary font is Source Han Sans SC (CJK + Latin). If any glyph is
+    missing (width == 0), falls back to DejaVu Sans for that character.
+    This ensures correct rendering on all platforms including macOS.
+    """
+    font = _get_font(size, bold)
+    try:
+        surf = font.render(text, True, color)
+        has_missing = any(
+            font.render(ch, True, color).get_width() == 0
+            for ch in text if ord(ch) > 0x2000
+        )
+        if not has_missing:
+            return surf
+    except pygame.error:
+        pass
+
+    # Per-character fallback rendering
+    latin_path = _FONT_DEJAVU_BOLD if bold else _FONT_DEJAVU_REGULAR
+    font_latin = None
+    if os.path.isfile(latin_path):
+        try:
+            font_latin = pygame.font.Font(latin_path, size)
+        except pygame.error:
+            pass
+
+    char_surfs = []
+    total_w = 0
+    max_h = 0
+    for ch in text:
+        # Try CJK font first for non-Latin, otherwise Latin font
+        primary = font_latin if ord(ch) <= 0x2000 else font
+        cs = primary.render(ch, True, color) if primary else font.render(ch, True, color)
+        if cs.get_width() == 0:
+            cs = font.render(ch, True, color)  # fallback
+        char_surfs.append(cs)
+        total_w += cs.get_width()
+        max_h = max(max_h, cs.get_height())
+
+    surf = pygame.Surface((total_w, max_h), pygame.SRCALPHA)
+    x = 0
+    for cs in char_surfs:
+        surf.blit(cs, (x, 0))
+        x += cs.get_width()
+    return surf
 
 
 # ── HUD (in-game) ──────────────────────────────────────────────────
