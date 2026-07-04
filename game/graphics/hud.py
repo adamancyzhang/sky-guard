@@ -2,18 +2,41 @@
 import pygame
 from game.settings import *
 
-# CJK 字体路径（Noto Sans CJK SC，支持中文显示）
-CJK_FONT_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc"
-CJK_FONT_BOLD_PATH = "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc"
+# CJK 字体路径与名称（跨平台支持）
+# Linux/Docker: NotoSansCJK 字体文件
+_CJK_FILE_PATHS = [
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+    "/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc",
+    "/usr/share/fonts/truetype/noto/NotoSansCJK-Bold.ttc",
+]
+# macOS / Windows: 系统中文字体名称
+_CJK_FONT_NAMES = [
+    "PingFang SC", "PingFang", "Heiti SC", "STHeiti",
+    "Microsoft YaHei", "Microsoft JhengHei",
+    "Noto Sans CJK SC", "Noto Sans CJK",
+    "WenQuanYi Micro Hei",
+]
 
 
 def _get_font(size, bold=False):
-    """获取支持中文的字体，fallback 到默认字体"""
-    path = CJK_FONT_BOLD_PATH if bold else CJK_FONT_PATH
-    try:
-        return pygame.font.Font(path, size)
-    except (FileNotFoundError, pygame.error):
-        return pygame.font.Font(None, size)
+    """获取支持中文的字体（跨平台），fallback 到默认字体"""
+    # 1) 先尝试已知字体文件路径（Linux / Docker 环境）
+    for path in _CJK_FILE_PATHS:
+        try:
+            return pygame.font.Font(path, size)
+        except (FileNotFoundError, pygame.error):
+            continue
+    # 2) 再尝试系统字体名称（macOS / Windows）
+    for name in _CJK_FONT_NAMES:
+        try:
+            font = pygame.font.SysFont(name, size, bold=bold)
+            if font is not None:
+                return font
+        except pygame.error:
+            continue
+    # 3) 最终 fallback
+    return pygame.font.Font(None, size)
 
 
 def draw_hud(screen, score, lives, level):
