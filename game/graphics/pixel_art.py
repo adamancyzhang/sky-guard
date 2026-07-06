@@ -101,6 +101,25 @@ def create_enemy_surface(enemy_type, scale=3):
     return matrix_to_surface(matrix, color, scale)
 
 
+def create_boss_surface(scale=3):
+    """Create the Boss enemy Surface (larger, menacing)."""
+    from game.settings import BOSS_MATRIX, BOSS_COLOR, SCREEN_HEIGHT
+    surf = pygame.Surface((16 * scale, 16 * scale), pygame.SRCALPHA)
+    for y, row in enumerate(BOSS_MATRIX):
+        for x, ch in enumerate(row):
+            if ch == "1":
+                color = BOSS_COLOR
+                # Add some highlights
+                if y < 4 and x > 3 and x < 12:
+                    color = (255, 100, 255)
+                pygame.draw.rect(surf, color, (x * scale, y * scale, scale, scale))
+    # Eye glow
+    eye_color = (255, 50, 50)
+    for ex, ey in [(5 * scale, 6 * scale), (10 * scale, 6 * scale)]:
+        pygame.draw.circle(surf, eye_color, (ex + scale // 2, ey + scale // 2), scale)
+    return surf
+
+
 def create_bullet_surface():
     """Create the bullet Surface."""
     surf = pygame.Surface((BULLET_WIDTH, BULLET_HEIGHT), pygame.SRCALPHA)

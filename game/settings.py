@@ -76,6 +76,44 @@ BACKGROUND_LAYERS = [
     {"name": "ground",    "speed": 2.0, "color": (15, 25, 20)},      # 近地
 ]
 
+# Boss settings
+BOSS_SCORE_INTERVAL = 1000      # Boss every 1000 score
+BOSS_BASE_HP = 20
+BOSS_SPEED = 1
+BOSS_SCORE_VALUE = 200
+BOSS_SHOOT_INTERVAL = 30        # frames between boss bullet volleys
+BOSS_COLOR = (200, 50, 200)
+BOSS_MATRIX = [                  # 16x16 pixel art
+    "0001111111111000",
+    "0011111111111100",
+    "0111111111111110",
+    "1111100000011111",
+    "1111000000001111",
+    "1111011111101111",
+    "1111111111111111",
+    "1111111111111111",
+    "1111111111111111",
+    "1111011111101111",
+    "1111000000001111",
+    "1111100000011111",
+    "0111111111111110",
+    "0011111111111100",
+    "0001111111111000",
+    "0000110011000000",
+]
+BOSS_BULLET_CONFIGS = [
+    # Pattern 1: spread (3 bullets at angles)
+    {"pattern": "spread", "count": 3, "angle_spread": 30, "interval": 40},
+    # Pattern 2: aimed (directly at player)
+    {"pattern": "aimed", "count": 1, "interval": 25},
+    # Pattern 3: circle (full 360 burst)
+    {"pattern": "circle", "count": 8, "interval": 60},
+]
+BOSS_PHASE_THRESHOLDS = {
+    0.66: "circle",    # below 66% HP: circle pattern
+    0.33: "aimed",     # below 33% HP: aimed pattern
+}
+
 # Power-up settings
 POWERUP_DROP_CHANCE = 0.15        # 15% chance per enemy kill
 POWERUP_SPEED = 2                  # fall speed

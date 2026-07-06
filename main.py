@@ -8,6 +8,7 @@ from game.sprites.player import Player
 from game.sprites.bullet import Bullet
 from game.sprites.explosion import Explosion
 from game.sprites.enemy_bullet import EnemyBullet
+from game.sprites.boss import Boss
 from game.systems.spawner import Spawner
 from game.systems.collision import (
     check_bullet_enemy_collisions,
@@ -50,6 +51,7 @@ class Game:
         self.explosions_group = pygame.sprite.Group()
         self.powerups_group = pygame.sprite.Group()
         self.enemy_bullets_group = pygame.sprite.Group()
+        self.boss_group = pygame.sprite.GroupSingle()
 
         # Game systems
         self.player = Player()
@@ -117,6 +119,7 @@ class Game:
         self.explosions_group.empty()
         self.powerups_group.empty()
         self.enemy_bullets_group.empty()
+        self.boss_group.empty()
         self.player.reset()
         self.spawner.reset()
 
@@ -140,6 +143,31 @@ class Game:
                     )
                     self.enemy_bullets_group.add(bullet)
             self.enemy_bullets_group.update()
+
+            # Boss spawn check
+            if self.spawner.check_boss_spawn(self.player.score):
+                boss = Boss()
+                self.boss_group.add(boss)
+                # Clear regular enemies for dramatic effect
+                self.enemies_group.empty()
+                self.sound_manager.play("game_over")
+
+            # Boss update + shooting
+            if self.boss_group.sprite and self.boss_group.sprite.is_alive():
+                self.boss_group.update()
+                boss = self.boss_group.sprite
+                if boss.should_shoot():
+                    vectors = boss.get_bullet_vectors(
+                        self.player.rect.centerx, self.player.rect.centery
+                    )
+                    for vx, vy in vectors:
+                        bullet = EnemyBullet(
+                            boss.rect.centerx, boss.rect.centery,
+                            self.player.rect.centerx, self.player.rect.centery,
+                        )
+                        bullet.vx = vx
+                        bullet.vy = vy
+                        self.enemy_bullets_group.add(bullet)
 
             # Collision detection — pass powerups_group for drops
             score = check_bullet_enemy_collisions(
@@ -181,6 +209,28 @@ class Game:
                     self.state.set(GameState.GAME_OVER)
                     self.sound_manager.play("game_over")
 
+            # Bullet-Boss collision
+            if self.boss_group.sprite and self.boss_group.sprite.is_alive():
+                boss = self.boss_group.sprite
+                boss_hit_by = pygame.sprite.spritecollide(boss, self.bullets_group, False)
+                for bullet in boss_hit_by:
+                    destroyed = boss.take_damage()
+                    bullet.kill()
+                    if destroyed:
+                        self.player.score += boss.score_value
+                        # Big explosion
+                        for _ in range(5):
+                            Explosion(
+                                boss.rect.centerx + random.randint(-30, 30),
+                                boss.rect.centery + random.randint(-30, 30),
+                                self.explosions_group,
+                            )
+                        boss.kill()
+                        self.spawner.boss_active = False
+                        self.sound_manager.play("explosion")
+                        self.sound_manager.play("level_up")
+                    break
+
     def _handle_resize(self, new_w, new_h):
         """Maintain 2:3 aspect ratio on window resize."""
         # Calculate the largest integer scale that fits in the new window
@@ -217,18 +267,6 @@ class Game:
 
             self.sound_manager.play("shoot")
 
-    def _update_stars(self):
-        for star in self.stars:
-            star["y"] += star["speed"]
-            if star["y"] > SCREEN_HEIGHT:
-                star["y"] = 0
-                star["x"] = random.randint(0, SCREEN_WIDTH)
-
-    def _draw_stars(self, screen):
-        for star in self.stars:
-            c = star["brightness"]
-            pygame.draw.circle(screen, (c, c, c), (int(star["x"]), int(star["y"])), star["size"])
-
     def draw(self):
         # Clear virtual surface
         self.virtual_surf.fill(BLACK)
@@ -243,6 +281,7 @@ class Game:
             self.bullets_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
+            self.boss_group.draw(self.virtual_surf)
             self.player_group.add(self.player)
             self.player_group.draw(self.virtual_surf)
             # Explosions need custom draw
