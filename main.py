@@ -17,6 +17,7 @@ from game.systems.collision import (
     check_enemy_bullet_player_collisions,
 )
 from game.graphics.hud import draw_hud, draw_menu_screen, draw_game_over_screen, draw_help_screen
+from game.graphics.screen_shake import ScreenShake
 from game.sounds.sound_manager import SoundManager
 
 
@@ -61,6 +62,7 @@ class Game:
         # Background
         from game.graphics.background import ScrollingBackground
         self.background = ScrollingBackground()
+        self.screen_shake = ScreenShake()
 
     def run(self):
         while self.running:
@@ -151,6 +153,7 @@ class Game:
                 # Clear regular enemies for dramatic effect
                 self.enemies_group.empty()
                 self.sound_manager.play("game_over")
+                self.screen_shake.shake(8.0)
 
             # Boss update + shooting
             if self.boss_group.sprite and self.boss_group.sprite.is_alive():
@@ -176,6 +179,7 @@ class Game:
             if score > 0:
                 self.player.score += score
                 self.sound_manager.play("explosion")
+                self.screen_shake.shake(3.0)
 
             # Power-up collection
             collected_type = check_player_powerup_collisions(self.player, self.powerups_group)
@@ -195,6 +199,7 @@ class Game:
             )
             if hit:
                 self.sound_manager.play("hit")
+                self.screen_shake.shake(6.0)
                 if self.player.lives <= 0:
                     self.state.set(GameState.GAME_OVER)
                     self.sound_manager.play("game_over")
@@ -205,6 +210,7 @@ class Game:
             )
             if enemy_bullet_hit:
                 self.sound_manager.play("hit")
+                self.screen_shake.shake(5.0)
                 if self.player.lives <= 0:
                     self.state.set(GameState.GAME_OVER)
                     self.sound_manager.play("game_over")
@@ -229,7 +235,10 @@ class Game:
                         self.spawner.boss_active = False
                         self.sound_manager.play("explosion")
                         self.sound_manager.play("level_up")
+                        self.screen_shake.shake(10.0)
                     break
+
+            self.screen_shake.update()
 
     def _handle_resize(self, new_w, new_h):
         """Maintain 2:3 aspect ratio on window resize."""
@@ -298,8 +307,21 @@ class Game:
             self.background.draw(self.virtual_surf)
             draw_game_over_screen(self.virtual_surf, self.player.score)
 
-        # Scale virtual surface to display window
-        scaled = pygame.transform.scale(self.virtual_surf, (self.display_width, self.display_height))
+        # Scale virtual surface to display window — apply screen shake offset
+        shake_dx, shake_dy = self.screen_shake.get_offset()
+        if shake_dx != 0 or shake_dy != 0:
+            shake_surf = pygame.Surface(
+                (SCREEN_WIDTH + abs(shake_dx) * 2, SCREEN_HEIGHT + abs(shake_dy) * 2),
+                pygame.SRCALPHA,
+            )
+            shake_surf.blit(self.virtual_surf, (shake_dx, shake_dy))
+            # Crop to viewport
+            crop = shake_surf.subsurface(
+                (max(0, -shake_dx), max(0, -shake_dy), SCREEN_WIDTH, SCREEN_HEIGHT)
+            )
+            scaled = pygame.transform.scale(crop, (self.display_width, self.display_height))
+        else:
+            scaled = pygame.transform.scale(self.virtual_surf, (self.display_width, self.display_height))
         self.screen.blit(scaled, (0, 0))
 
 
