@@ -53,3 +53,16 @@ def check_player_powerup_collisions(player, powerups_group):
     for pu in collected:
         return pu.power_type
     return None
+
+
+def check_enemy_bullet_player_collisions(player, enemy_bullets_group, explosions_group):
+    """Check enemy bullet - player collisions. Returns True if player was hit."""
+    hit_bullets = pygame.sprite.spritecollide(player, enemy_bullets_group, True)
+    if hit_bullets:
+        if hasattr(player, 'has_powerup') and player.has_powerup("shield"):
+            return False
+        for bullet in hit_bullets:
+            if bullet.rect:
+                Explosion(bullet.rect.centerx, bullet.rect.centery, explosions_group)
+        return player.hit()
+    return False

@@ -60,6 +60,14 @@ DIFFICULTY_STEPS = {
 STAR_COUNT = 60
 STAR_SPEED = 2
 
+# Enemy bullet settings
+ENEMY_BULLET_SPEED = 5
+ENEMY_BULLET_COLOR = (255, 100, 100)
+ENEMY_BULLET_WIDTH = 3
+ENEMY_BULLET_HEIGHT = 8
+ENEMY_SHOOT_INTERVAL = 90      # frames between enemy shots (reduces with difficulty)
+ENEMY_SHOOT_MIN_INTERVAL = 30  # minimum at high difficulty
+
 # Parallax background layers (speed = pixels/frame)
 BACKGROUND_LAYERS = [
     {"name": "sky",       "speed": 0.3, "color": (10, 10, 40)},      # 深空

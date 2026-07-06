@@ -7,11 +7,13 @@ from game.state import GameState
 from game.sprites.player import Player
 from game.sprites.bullet import Bullet
 from game.sprites.explosion import Explosion
+from game.sprites.enemy_bullet import EnemyBullet
 from game.systems.spawner import Spawner
 from game.systems.collision import (
     check_bullet_enemy_collisions,
     check_player_enemy_collisions,
     check_player_powerup_collisions,
+    check_enemy_bullet_player_collisions,
 )
 from game.graphics.hud import draw_hud, draw_menu_screen, draw_game_over_screen, draw_help_screen
 from game.sounds.sound_manager import SoundManager
@@ -47,6 +49,7 @@ class Game:
         self.enemies_group = pygame.sprite.Group()
         self.explosions_group = pygame.sprite.Group()
         self.powerups_group = pygame.sprite.Group()
+        self.enemy_bullets_group = pygame.sprite.Group()
 
         # Game systems
         self.player = Player()
@@ -113,6 +116,7 @@ class Game:
         self.enemies_group.empty()
         self.explosions_group.empty()
         self.powerups_group.empty()
+        self.enemy_bullets_group.empty()
         self.player.reset()
         self.spawner.reset()
 
@@ -126,6 +130,16 @@ class Game:
             self.explosions_group.update()
             self.powerups_group.update()
             self.spawner.update(self.enemies_group, self.player.score)
+
+            # Enemy shooting
+            for enemy in self.enemies_group:
+                if enemy.should_shoot(0):
+                    bullet = EnemyBullet(
+                        enemy.rect.centerx, enemy.rect.centery,
+                        self.player.rect.centerx, self.player.rect.centery,
+                    )
+                    self.enemy_bullets_group.add(bullet)
+            self.enemy_bullets_group.update()
 
             # Collision detection — pass powerups_group for drops
             score = check_bullet_enemy_collisions(
@@ -152,6 +166,16 @@ class Game:
                 self.player, self.enemies_group, self.explosions_group
             )
             if hit:
+                self.sound_manager.play("hit")
+                if self.player.lives <= 0:
+                    self.state.set(GameState.GAME_OVER)
+                    self.sound_manager.play("game_over")
+
+            # Enemy bullet hits player
+            enemy_bullet_hit = check_enemy_bullet_player_collisions(
+                self.player, self.enemy_bullets_group, self.explosions_group
+            )
+            if enemy_bullet_hit:
                 self.sound_manager.play("hit")
                 if self.player.lives <= 0:
                     self.state.set(GameState.GAME_OVER)
@@ -218,6 +242,7 @@ class Game:
             self.enemies_group.draw(self.virtual_surf)
             self.bullets_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
+            self.enemy_bullets_group.draw(self.virtual_surf)
             self.player_group.add(self.player)
             self.player_group.draw(self.virtual_surf)
             # Explosions need custom draw

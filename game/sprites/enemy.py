@@ -20,6 +20,9 @@ class Enemy(pygame.sprite.Sprite):
         # Slight lateral wobble
         self.wobble = random.uniform(-1, 1)
         self.wobble_speed = random.uniform(0.02, 0.05)
+        # Shooting ability
+        self.can_shoot = enemy_type in ("fast", "tank")  # basic enemies don't shoot
+        self.shoot_timer = random.randint(0, ENEMY_SHOOT_INTERVAL)
 
     def update(self, *args, **kwargs):
         self.rect.y += self.speed
@@ -37,3 +40,18 @@ class Enemy(pygame.sprite.Sprite):
         # Hit flash
         self.image.set_alpha(100)
         return self.hp <= 0
+
+    def should_shoot(self, frame_count):
+        """Check if this enemy should fire a bullet this frame."""
+        if not self.can_shoot:
+            return False
+        # Only shoot when roughly in the upper 2/3 of screen
+        if self.rect.top > SCREEN_HEIGHT * 0.66:
+            return False
+        # Timer-based shooting with random variation
+        self.shoot_timer -= 1
+        if self.shoot_timer <= 0:
+            self.shoot_timer = max(ENEMY_SHOOT_MIN_INTERVAL,
+                                   ENEMY_SHOOT_INTERVAL - random.randint(0, 30))
+            return True
+        return False
