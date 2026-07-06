@@ -60,8 +60,8 @@ class Game:
         self.sound_manager = SoundManager()
 
         # Background
-        from game.graphics.background import ScrollingBackground
-        self.background = ScrollingBackground()
+        from game.graphics.background import LevelBackgroundManager
+        self.background = LevelBackgroundManager()
         self.screen_shake = ScreenShake()
 
     def run(self):
@@ -124,6 +124,13 @@ class Game:
         self.boss_group.empty()
         self.player.reset()
         self.spawner.reset()
+        self.spawner.on_level_up = self._on_level_up
+        self.background.switch_to_level(0)
+        self.background.set_boss_mode(False)
+
+    def _on_level_up(self, level):
+        """Called when spawner detects level change."""
+        self.background.switch_to_level(level)
 
     def update(self):
         if self.state.is_playing():
@@ -152,6 +159,7 @@ class Game:
                 self.boss_group.add(boss)
                 # Clear regular enemies for dramatic effect
                 self.enemies_group.empty()
+                self.background.set_boss_mode(True)
                 self.sound_manager.play("game_over")
                 self.screen_shake.shake(8.0)
 
@@ -237,6 +245,7 @@ class Game:
                             )
                         boss.kill()
                         self.spawner.boss_active = False
+                        self.background.set_boss_mode(False)
                         self.sound_manager.play("explosion")
                         self.sound_manager.play("level_up")
                         self.screen_shake.shake(10.0)
