@@ -149,3 +149,91 @@ POWERUP_TYPES = {
         "description_key": "item_life",
     },
 }
+
+# ── Level-based background themes ────────────────────────────────────
+# Each theme defines: colors, speed multipliers, particle effects
+# Layer names: "sky", "clouds", "mountains", "city", "ground", "foreground"
+
+BG_THEMES = {
+    0: {  # 夜城 Night City
+        "name": "night_city",
+        "label_key": "theme_night",
+        "layers": [
+            {"name": "sky",        "speed": 0.3, "color": (10, 10, 40),  "stars": 40},
+            {"name": "mountains",  "speed": 0.6, "color": (20, 20, 50),  "seed": 0},
+            {"name": "city",       "speed": 1.2, "color": (25, 25, 45),  "seed": 0},
+            {"name": "ground",     "speed": 2.0, "color": (15, 25, 20),  "seed": 0},
+        ],
+        "particles": [],
+        "ambient_color": None,
+    },
+    1: {  # 黎明 Dawn
+        "name": "dawn",
+        "label_key": "theme_dawn",
+        "layers": [
+            {"name": "sky",        "speed": 0.4, "color": (60, 30, 80),   "stars": 20},
+            {"name": "clouds",     "speed": 0.7, "color": (80, 50, 90),   "alpha": 100},
+            {"name": "mountains",  "speed": 0.9, "color": (40, 25, 55),   "seed": 1},
+            {"name": "ground",     "speed": 2.2, "color": (30, 20, 40),   "seed": 1},
+        ],
+        "particles": [{"type": "bird",    "rate": 0.02}],
+        "ambient_color": (60, 30, 80),
+    },
+    2: {  # 深空 Deep Space
+        "name": "deep_space",
+        "label_key": "theme_space",
+        "layers": [
+            {"name": "sky",        "speed": 0.5, "color": (5, 5, 30),     "stars": 80},
+            {"name": "clouds",     "speed": 0.8, "color": (15, 10, 40),   "alpha": 80},
+            {"name": "mountains",  "speed": 1.2, "color": (10, 10, 35),   "seed": 2},
+            {"name": "ground",     "speed": 2.5, "color": (8, 8, 25),     "seed": 2},
+        ],
+        "particles": [{"type": "shooting_star", "rate": 0.01}],
+        "ambient_color": None,
+    },
+    3: {  # 风暴 Storm
+        "name": "storm",
+        "label_key": "theme_storm",
+        "layers": [
+            {"name": "sky",        "speed": 0.6, "color": (20, 20, 50),   "stars": 10},
+            {"name": "clouds",     "speed": 1.0, "color": (40, 40, 60),   "alpha": 160},
+            {"name": "mountains",  "speed": 1.5, "color": (15, 15, 35),   "seed": 3},
+            {"name": "ground",     "speed": 3.0, "color": (20, 20, 30),   "seed": 3},
+        ],
+        "particles": [{"type": "lightning", "rate": 0.005}, {"type": "rain", "rate": 0.3}],
+        "ambient_color": (20, 20, 50),
+    },
+    4: {  # 异星 Alien
+        "name": "alien",
+        "label_key": "theme_alien",
+        "layers": [
+            {"name": "sky",        "speed": 0.7, "color": (30, 10, 50),   "stars": 30},
+            {"name": "clouds",     "speed": 1.2, "color": (50, 20, 70),   "alpha": 100},
+            {"name": "mountains",  "speed": 1.8, "color": (40, 15, 55),   "seed": 4},
+            {"name": "ground",     "speed": 3.2, "color": (30, 40, 20),   "seed": 4},
+        ],
+        "particles": [{"type": "spore", "rate": 0.05}],
+        "ambient_color": (30, 10, 50),
+    },
+    5: {  # 终局 Final / 熔岩
+        "name": "final",
+        "label_key": "theme_final",
+        "layers": [
+            {"name": "sky",        "speed": 0.8, "color": (50, 10, 10),   "stars": 15},
+            {"name": "clouds",     "speed": 1.5, "color": (70, 20, 15),   "alpha": 200},
+            {"name": "mountains",  "speed": 2.0, "color": (40, 8, 8),     "seed": 5},
+            {"name": "ground",     "speed": 3.5, "color": (60, 15, 5),    "seed": 5},
+        ],
+        "particles": [{"type": "ember", "rate": 0.1}],
+        "ambient_color": (50, 10, 10),
+    },
+}
+
+# Boss battle overlay
+BOSS_BG_OVERLAY_COLOR = (40, 0, 0)     # dark red overlay
+BOSS_BG_OVERLAY_ALPHA = 80             # 0-255
+BOSS_PARTICLE_TYPE = "boss_storm"
+BOSS_PARTICLE_RATE = 0.2               # particles per frame
+
+# Transition
+BG_TRANSITION_DURATION = 30  # frames (0.5s at 60fps)
