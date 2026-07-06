@@ -201,6 +201,8 @@ class Game:
                 self.sound_manager.play("hit")
                 self.screen_shake.shake(6.0)
                 if self.player.lives <= 0:
+                    from game.highscore import HighScore
+                    HighScore.save_if_beaten(self.player.score)
                     self.state.set(GameState.GAME_OVER)
                     self.sound_manager.play("game_over")
 
@@ -212,6 +214,8 @@ class Game:
                 self.sound_manager.play("hit")
                 self.screen_shake.shake(5.0)
                 if self.player.lives <= 0:
+                    from game.highscore import HighScore
+                    HighScore.save_if_beaten(self.player.score)
                     self.state.set(GameState.GAME_OVER)
                     self.sound_manager.play("game_over")
 

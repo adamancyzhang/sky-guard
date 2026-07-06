@@ -175,9 +175,17 @@ def draw_menu_screen(screen, selected):
 # ── Game Over ──────────────────────────────────────────────────────
 
 def draw_game_over_screen(screen, score):
-    """Draw the game over screen with properly-sized text."""
+    """Draw the game over screen with properly-sized text and high score."""
     from game.l10n import L10n
     _ = L10n._
+
+    # Load high score (lazy import to avoid circular deps)
+    highscore = 0
+    try:
+        from game.highscore import HighScore
+        highscore = HighScore.load()
+    except ImportError:
+        pass
 
     screen.fill(BLACK)
 
@@ -195,13 +203,22 @@ def draw_game_over_screen(screen, score):
     score_rect = score_text.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 10))
     screen.blit(score_text, score_rect)
 
+    # High score
+    prompt_y_offset = 0
+    if highscore > 0:
+        hs_text = _("highest_score", highscore)
+        hs_surf = font_medium.render(hs_text, True, YELLOW)
+        hs_rect = hs_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 22))
+        screen.blit(hs_surf, hs_rect)
+        prompt_y_offset = 26
+
     # Prompt — split into two lines to avoid overflow
     prompt_line1 = font_small.render(_("restart_prompt_line1"), True, LIGHT_GRAY)
-    prompt1_rect = prompt_line1.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40))
+    prompt1_rect = prompt_line1.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 40 + prompt_y_offset))
     screen.blit(prompt_line1, prompt1_rect)
 
     prompt_line2 = font_small.render(_("restart_prompt_line2"), True, LIGHT_GRAY)
-    prompt2_rect = prompt_line2.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 66))
+    prompt2_rect = prompt_line2.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 66 + prompt_y_offset))
     screen.blit(prompt_line2, prompt2_rect)
 
 
