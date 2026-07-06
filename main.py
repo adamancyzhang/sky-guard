@@ -53,16 +53,9 @@ class Game:
         self.spawner = Spawner()
         self.sound_manager = SoundManager()
 
-        # Starfield
-        self.stars = []
-        for _ in range(STAR_COUNT):
-            self.stars.append({
-                "x": random.randint(0, SCREEN_WIDTH),
-                "y": random.randint(0, SCREEN_HEIGHT),
-                "speed": random.uniform(1, STAR_SPEED + 2),
-                "size": random.randint(1, 3),
-                "brightness": random.randint(100, 255),
-            })
+        # Background
+        from game.graphics.background import ScrollingBackground
+        self.background = ScrollingBackground()
 
     def run(self):
         while self.running:
@@ -125,7 +118,7 @@ class Game:
 
     def update(self):
         if self.state.is_playing():
-            self._update_stars()
+            self.background.update()
             self._handle_shooting()
             self.player.update(pygame.key.get_pressed())
             self.bullets_group.update()
@@ -221,7 +214,7 @@ class Game:
         elif self.state.is_help():
             draw_help_screen(self.virtual_surf)
         elif self.state.is_playing():
-            self._draw_stars(self.virtual_surf)
+            self.background.draw(self.virtual_surf)
             self.enemies_group.draw(self.virtual_surf)
             self.bullets_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
@@ -238,7 +231,7 @@ class Game:
                 self.player.active_powerups,
             )
         elif self.state.is_game_over():
-            self._draw_stars(self.virtual_surf)
+            self.background.draw(self.virtual_surf)
             draw_game_over_screen(self.virtual_surf, self.player.score)
 
         # Scale virtual surface to display window

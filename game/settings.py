@@ -60,6 +60,14 @@ DIFFICULTY_STEPS = {
 STAR_COUNT = 60
 STAR_SPEED = 2
 
+# Parallax background layers (speed = pixels/frame)
+BACKGROUND_LAYERS = [
+    {"name": "sky",       "speed": 0.3, "color": (10, 10, 40)},      # 深空
+    {"name": "mountains", "speed": 0.6, "color": (20, 20, 50)},      # 远山
+    {"name": "city",      "speed": 1.2, "color": (25, 25, 45)},      # 城市天际线
+    {"name": "ground",    "speed": 2.0, "color": (15, 25, 20)},      # 近地
+]
+
 # Power-up settings
 POWERUP_DROP_CHANCE = 0.15        # 15% chance per enemy kill
 POWERUP_SPEED = 2                  # fall speed
