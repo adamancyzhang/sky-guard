@@ -3,6 +3,7 @@ import pygame
 import random
 import sys
 import time
+from typing import Optional
 from game.settings import *
 from game.state import GameState
 from game.sprites.player import Player
@@ -34,7 +35,7 @@ from game.graphics.hud import (
 )
 from game.graphics.screen_shake import ScreenShake
 from game.sounds.sound_manager import SoundManager
-from network.client import NetworkClient, ConnectionStatus
+from network import get_client, has_network_support
 from network.protocol import DEFAULT_HOST, DEFAULT_PORT, NetworkEvent
 
 
@@ -82,7 +83,7 @@ class Game:
         self.screen_shake = ScreenShake()
 
         # ── 网络模块 ────────────────────────────────────────────────────
-        self.net_client: NetworkClient = None
+        self.net_client: Optional["NetworkClient"] = None
         # 联网菜单状态
         self.server_host = DEFAULT_HOST
         self.server_port = DEFAULT_PORT
@@ -198,7 +199,7 @@ class Game:
         if self.net_client:
             self.net_client.disconnect()
 
-        self.net_client = NetworkClient(self.server_host, self.server_port)
+        self.net_client = get_client(self.server_host, self.server_port)
         # 注册事件
         self.net_client.on(NetworkEvent.CONNECTED, self._on_connected)
         self.net_client.on(NetworkEvent.DISCONNECTED, self._on_disconnected)
@@ -298,6 +299,9 @@ class Game:
                 self.running = False
 
     def _enter_network_menu(self):
+        if not has_network_support():
+            self.network_error_msg = "缺少依赖: pip install websockets"
+            return
         self.state.set(GameState.NETWORK_MENU)
         self._init_net_buffers()
         self.net_username_buffer = ""

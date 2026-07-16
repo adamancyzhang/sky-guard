@@ -13,8 +13,15 @@ import time
 from enum import Enum
 from typing import Callable, Optional
 
-import websockets
-from websockets.asyncio.client import connect
+# websockets 是可选依赖 — 未安装时联网功能不可用，但单人模式不受影响
+_HAS_WEBSOCKETS = False
+try:
+    import websockets
+    from websockets.asyncio.client import connect
+    _HAS_WEBSOCKETS = True
+except ImportError:
+    websockets = None  # type: ignore
+    connect = None  # type: ignore
 
 from .protocol import MessageType, NetworkEvent, DEFAULT_HOST, DEFAULT_PORT
 
