@@ -295,6 +295,9 @@ class NetworkClient:
         elif msg_type == MessageType.ENEMY_KILLED:
             self._emit(NetworkEvent.ENEMY_KILLED, msg)
 
+        elif msg_type == MessageType.PARTNER_BULLET:
+            self._emit(NetworkEvent.PARTNER_BULLET, msg)
+
         elif msg_type == MessageType.GAME_SEED:
             self._emit(NetworkEvent.GAME_SEED, msg)
 
@@ -372,6 +375,15 @@ class NetworkClient:
             "type": MessageType.ENEMY_KILLED,
             "enemy_id": enemy_id,
             "score": score,
+        })
+
+    def send_bullet_spawned(self, x: float, y: float, is_triple: bool = False):
+        """发送射击事件（伙伴端渲染子弹）"""
+        self.send({
+            "type": MessageType.PARTNER_BULLET,
+            "x": x,
+            "y": y,
+            "is_triple": is_triple,
         })
 
     def request_player_list(self):

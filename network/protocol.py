@@ -18,6 +18,7 @@ class MessageType:
     GAME_INPUT = "game_input"           # 发送游戏输入给对方
     PLAYER_STATE = "player_state"       # 发送玩家位置/状态（高频）
     ENEMY_KILLED = "enemy_killed"       # 通知服务器自己击杀了一个敌机
+    PARTNER_BULLET = "partner_bullet"   # 通知服务器自己在射击
     COOP_READY = "coop_ready"           # 玩家已准备好开始合作游戏
     PING = "ping"                        # 心跳
 
@@ -34,6 +35,7 @@ class MessageType:
     OPPONENT_INPUT = "opponent_input"    # 转发对方的游戏输入
     PARTNER_STATE = "partner_state"      # 转发伙伴的位置/状态（高频）
     ENEMY_KILLED = "enemy_killed"        # 伙伴击杀了一个敌机
+    PARTNER_BULLET = "partner_bullet"    # 伙伴在射击
     GAME_SEED = "game_seed"              # 服务器下发的随机种子
     COOP_START = "coop_start"            # 双方就绪，正式开战
     PONG = "pong"                        # 心跳回复
@@ -59,6 +61,7 @@ class NetworkEvent:
     OPPONENT_INPUT = "opponent_input"
     PARTNER_STATE = "partner_state"
     ENEMY_KILLED = "enemy_killed"
+    PARTNER_BULLET = "partner_bullet"
     GAME_SEED = "game_seed"
     COOP_START = "coop_start"
     PLAYER_LIST = "player_list"

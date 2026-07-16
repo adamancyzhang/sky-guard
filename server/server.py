@@ -404,6 +404,20 @@ class GameServer:
                 "from_player_id": sender.player_id,
             })
 
+    async def forward_bullet(self, sender: Player, msg: dict):
+        """转发射击事件给对手（用于显示伙伴子弹）"""
+        if not sender.room_id or sender.room_id not in self.rooms:
+            return
+        room = self.rooms[sender.room_id]
+        opponent = room.guest if sender is room.host else room.host
+        if opponent:
+            await opponent.send({
+                "type": MessageType.PARTNER_BULLET,
+                "x": msg.get("x", 0),
+                "y": msg.get("y", 0),
+                "is_triple": msg.get("is_triple", False),
+            })
+
     # ── 游戏数据转发 ────────────────────────────────────────────────────
 
     async def forward_game_input(self, sender: Player, data: dict):
@@ -488,6 +502,7 @@ class GameServer:
             MessageType.GAME_INPUT: lambda: self.forward_game_input(player, msg.get("data", {})),
             MessageType.PLAYER_STATE: lambda: self.forward_player_state(player, msg.get("state", {})),
             MessageType.ENEMY_KILLED: lambda: self.forward_enemy_killed(player, msg),
+            MessageType.PARTNER_BULLET: lambda: self.forward_bullet(player, msg),
             MessageType.PING: lambda: self.handle_ping(player),
             MessageType.REGISTER: lambda: self._reregister(player, msg),
         }.get(msg_type)

@@ -104,11 +104,12 @@ class Game:
         self.opponent_lives = 0
         self.opponent_disconnected = False
         # ── 合作模式字段 ──
-        self.partner_state = {"x": 0, "y": 0, "lives": 0, "score": 0}
+        self.partner_state = {"x": 0, "y": 0, "target_x": 0, "target_y": 0, "lives": 0, "score": 0}
         self.shared_score = 0
         self.shared_lives = 0
         self.coop_seed = 0
         self.enemy_kill_queue = []  # 待移除的敌机 EID
+        self.partner_bullets = []  # 伙伴子弹视觉列表 [(x, y, dy, life), ...]
         self.coop_frame_counter = 0
         # ── ──
         self.countdown_number = 0
@@ -200,10 +201,11 @@ class Game:
             self.opponent_lives = input_data["lives"]
 
     def _on_partner_state(self, data):
-        """接收伙伴的实时位置/状态"""
+        """接收伙伴的实时位置/状态（平滑插值）"""
         state = data.get("state", {})
-        self.partner_state["x"] = state.get("x", self.partner_state["x"])
-        self.partner_state["y"] = state.get("y", self.partner_state["y"])
+        # Store target position for smooth lerp
+        self.partner_state["target_x"] = state.get("x", self.partner_state.get("x", 0))
+        self.partner_state["target_y"] = state.get("y", self.partner_state.get("y", 0))
         self.partner_state["lives"] = state.get("lives", 0)
         self.partner_state["score"] = state.get("score", 0)
 
@@ -214,6 +216,17 @@ class Game:
         self.shared_score += pts
         if eid is not None:
             self.enemy_kill_queue.append(eid)
+
+    def _on_partner_bullet(self, data):
+        """伙伴发射了子弹 — 在本地渲染"""
+        bx = data.get("x", 0)
+        by = data.get("y", 0)
+        is_triple = data.get("is_triple", False)
+        # 主子弹
+        self.partner_bullets.append([bx, by, 0, 40])  # x, y, unused, life
+        if is_triple:
+            self.partner_bullets.append([bx - 12, by, 0, 40])
+            self.partner_bullets.append([bx + 12, by, 0, 40])
 
     def _on_player_list(self, data):
         # Store online count for lobby display
@@ -245,6 +258,7 @@ class Game:
         self.net_client.on(NetworkEvent.OPPONENT_INPUT, self._on_opponent_input)
         self.net_client.on(NetworkEvent.PARTNER_STATE, self._on_partner_state)
         self.net_client.on(NetworkEvent.ENEMY_KILLED, self._on_enemy_killed)
+        self.net_client.on(NetworkEvent.PARTNER_BULLET, self._on_partner_bullet)
         self.net_client.on(NetworkEvent.PLAYER_LIST, self._on_player_list)
 
         self.net_client.connect(username)
@@ -691,6 +705,17 @@ class Game:
                                       self.explosions_group)
                             enemy.kill()
 
+                # 伙伴位置平滑插值（lerp 到目标位置）
+                tx = self.partner_state.get("target_x", 0)
+                ty = self.partner_state.get("target_y", 0)
+                cx = self.partner_state.get("x", 0)
+                cy = self.partner_state.get("y", 0)
+                self.partner_state["x"] = cx + (tx - cx) * 0.35
+                self.partner_state["y"] = cy + (ty - cy) * 0.35
+
+                # 更新伙伴子弹（向上移动 + 衰减）
+                self._update_partner_bullets()
+
             # 合作模式：共享生命池逻辑（覆盖 player.lives）
             if self.state.current == GameState.NETWORK_PLAYING:
                 # 实际生命值以 shared_lives 为准
@@ -701,6 +726,17 @@ class Game:
             if self.state.current == GameState.NETWORK_PLAYING and self.opponent_disconnected:
                 # 游戏暂停，等待用户按 ENTER
                 pass
+
+    def _update_partner_bullets(self):
+        """更新伙伴子弹位置和生命周期"""
+        speed = BULLET_SPEED * 0.8  # slightly slower for visual distinction
+        alive = []
+        for b in self.partner_bullets:
+            b[1] += speed  # y movement (speed is negative = upward)
+            b[3] -= 1      # life
+            if b[3] > 0 and b[1] > -20:
+                alive.append(b)
+        self.partner_bullets = alive
 
     def _get_partner_sprite(self):
         """创建伙伴飞船精灵（淡紫色tint，区别于自己的青蓝色）"""
@@ -759,6 +795,13 @@ class Game:
                 self.bullets_group.add(bullet_left, bullet_right)
 
             self.sound_manager.play("shoot")
+
+            # 合作模式：通知伙伴我在射击
+            if self.state.current == GameState.NETWORK_PLAYING and self.net_client:
+                is_triple = self.player.has_powerup("triple")
+                self.net_client.send_bullet_spawned(
+                    self.player.rect.centerx, self.player.rect.top, is_triple,
+                )
 
     # ── 绘制 ────────────────────────────────────────────────────────────
 
@@ -842,12 +885,22 @@ class Game:
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
 
-            # 绘制伙伴飞船（淡紫色tint）
+            # 绘制伙伴飞船（淡紫色tint）+ 名字标签
             px, py = self.partner_state.get("x", 0), self.partner_state.get("y", 0)
             if px > 0 and py > 0:
                 partner_img = self._get_partner_sprite()
                 pr = partner_img.get_rect(center=(px, py))
                 self.virtual_surf.blit(partner_img, pr)
+                # 名字标签
+                name_font = pygame.font.Font(None, 16)
+                name_surf = name_font.render(self.opponent_username, True, (180, 140, 255))
+                name_rect = name_surf.get_rect(center=(px, py - 28))
+                self.virtual_surf.blit(name_surf, name_rect)
+
+            # 绘制伙伴子弹（淡紫色弹道）
+            for bx, by, _, _ in self.partner_bullets:
+                pygame.draw.rect(self.virtual_surf, (200, 130, 255),
+                                 (bx - 2, by - 6, 4, 12))
 
             self.player_group.add(self.player)
             self.player_group.draw(self.virtual_surf)
