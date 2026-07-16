@@ -241,6 +241,17 @@ class Game:
             self.partner_bullets.append([bx - 12, by, 0, 100])
             self.partner_bullets.append([bx + 12, by, 0, 100])
 
+    def _on_enemy_snapshot(self, data):
+        """接收 host 的敌机位置快照 — 平滑跟随"""
+        if not self.is_host:
+            snap = {e["eid"]: e for e in data.get("enemies", []) if "eid" in e}
+            for enemy in self.enemies_group:
+                eid = getattr(enemy, "eid", None)
+                if eid in snap:
+                    s = snap[eid]
+                    enemy.rect.x += (s["x"] - enemy.rect.x) * 0.25
+                    enemy.rect.y += (s["y"] - enemy.rect.y) * 0.25
+
     def _on_player_list(self, data):
         # Store online count for lobby display
         self.online_count = data.get("online_count", data.get("players", [data]))
@@ -272,6 +283,7 @@ class Game:
         self.net_client.on(NetworkEvent.PARTNER_STATE, self._on_partner_state)
         self.net_client.on(NetworkEvent.ENEMY_KILLED, self._on_enemy_killed)
         self.net_client.on(NetworkEvent.PARTNER_BULLET, self._on_partner_bullet)
+        self.net_client.on(NetworkEvent.ENEMY_SNAPSHOT, self._on_enemy_snapshot)
         self.net_client.on(NetworkEvent.PLAYER_LIST, self._on_player_list)
 
         self.net_client.connect(username)
@@ -734,6 +746,16 @@ class Game:
 
                 # 更新伙伴子弹（向上移动 + 衰减）
                 self._update_partner_bullets()
+
+                # Host 每 6 帧发送敌机位置快照给 guest
+                if self.is_host and self.coop_frame_counter % 6 == 0:
+                    enemy_list = []
+                    for e in self.enemies_group:
+                        eid = getattr(e, "eid", None)
+                        if eid is not None:
+                            enemy_list.append({"eid": eid, "x": e.rect.x, "y": e.rect.y})
+                    if enemy_list:
+                        self.net_client.send_enemy_snapshot(enemy_list)
 
             # 合作模式：共享生命池逻辑（覆盖 player.lives）
             if self.state.current == GameState.NETWORK_PLAYING:

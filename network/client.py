@@ -298,6 +298,9 @@ class NetworkClient:
         elif msg_type == MessageType.PARTNER_BULLET:
             self._emit(NetworkEvent.PARTNER_BULLET, msg)
 
+        elif msg_type == MessageType.ENEMY_SNAPSHOT:
+            self._emit(NetworkEvent.ENEMY_SNAPSHOT, msg)
+
         elif msg_type == MessageType.GAME_SEED:
             self._emit(NetworkEvent.GAME_SEED, msg)
 
@@ -387,6 +390,13 @@ class NetworkClient:
             "x": x,
             "y": y,
             "is_triple": is_triple,
+        })
+
+    def send_enemy_snapshot(self, enemies: list):
+        """Host 发送敌机位置快照给 guest"""
+        self.send({
+            "type": MessageType.ENEMY_SNAPSHOT,
+            "enemies": enemies,
         })
 
     def request_player_list(self):

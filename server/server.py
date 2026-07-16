@@ -421,6 +421,18 @@ class GameServer:
                 "is_triple": msg.get("is_triple", False),
             })
 
+    async def forward_enemy_snapshot(self, sender: Player, msg: dict):
+        """转发 host 的敌机位置快照给 guest"""
+        if not sender.room_id or sender.room_id not in self.rooms:
+            return
+        room = self.rooms[sender.room_id]
+        opponent = room.guest if sender is room.host else room.host
+        if opponent:
+            await opponent.send({
+                "type": MessageType.ENEMY_SNAPSHOT,
+                "enemies": msg.get("enemies", []),
+            })
+
     # ── 游戏数据转发 ────────────────────────────────────────────────────
 
     async def forward_game_input(self, sender: Player, data: dict):
@@ -506,6 +518,7 @@ class GameServer:
             MessageType.PLAYER_STATE: lambda: self.forward_player_state(player, msg.get("state", {})),
             MessageType.ENEMY_KILLED: lambda: self.forward_enemy_killed(player, msg),
             MessageType.PARTNER_BULLET: lambda: self.forward_bullet(player, msg),
+            MessageType.ENEMY_SNAPSHOT: lambda: self.forward_enemy_snapshot(player, msg),
             MessageType.PING: lambda: self.handle_ping(player),
             MessageType.REGISTER: lambda: self._reregister(player, msg),
         }.get(msg_type)
