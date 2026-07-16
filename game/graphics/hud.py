@@ -534,6 +534,12 @@ def draw_network_game_hud(screen, score, lives, level, active_powerups,
     # 先画基础 HUD
     draw_hud(screen, score, lives, level, active_powerups)
 
+    # CO-OP 标识（顶栏居中）
+    coop_font = _get_font(16)
+    coop_tag = coop_font.render("[ CO-OP ]", True, (100, 255, 200))
+    coop_rect = coop_tag.get_rect(center=(SCREEN_WIDTH // 2, 12))
+    screen.blit(coop_tag, coop_rect)
+
     # 对手信息（右下角）
     if opponent_name:
         font = _get_font(20)
@@ -653,4 +659,40 @@ def draw_disconnected_overlay(screen):
     hint_font = _get_font(20)
     hint = hint_font.render(_("opponent_disconnected_hint"), True, LIGHT_GRAY)
     hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
+    screen.blit(hint, hint_rect)
+
+
+def draw_coop_game_over_screen(screen, final_score, your_name, partner_name):
+    """合作模式结算 — 双人共同成绩，无输赢对比"""
+    from game.l10n import L10n
+    _ = L10n._
+
+    screen.fill(BLACK)
+
+    # Title
+    title_font = _get_font(48, bold=True)
+    title = title_font.render("CO-OP COMPLETE!", True, (100, 255, 200))
+    title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4))
+    screen.blit(title, title_rect)
+
+    # Both players
+    name_font = _get_font(26)
+    p1 = name_font.render(f"✈  {your_name}", True, CYAN)
+    p1_rect = p1.get_rect(center=(SCREEN_WIDTH // 2 - 60, SCREEN_HEIGHT // 2 - 30))
+    screen.blit(p1, p1_rect)
+
+    p2 = name_font.render(f"✈  {partner_name}", True, (180, 100, 255))
+    p2_rect = p2.get_rect(center=(SCREEN_WIDTH // 2 + 60, SCREEN_HEIGHT // 2 - 30))
+    screen.blit(p2, p2_rect)
+
+    # Combined score
+    score_font = _get_font(36, bold=True)
+    score_label = score_font.render(_("final_score", final_score), True, YELLOW)
+    score_rect = score_label.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 20))
+    screen.blit(score_label, score_rect)
+
+    # Prompt
+    hint_font = _get_font(20)
+    hint = hint_font.render(_("network_game_over_hint"), True, DARK_GRAY)
+    hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
     screen.blit(hint, hint_rect)

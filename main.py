@@ -33,6 +33,7 @@ from game.graphics.hud import (
     draw_network_game_over_screen,
     draw_network_countdown_screen,
     draw_disconnected_overlay,
+    draw_coop_game_over_screen,
 )
 from game.graphics.screen_shake import ScreenShake
 from game.sounds.sound_manager import SoundManager
@@ -582,21 +583,21 @@ class Game:
                         self.enemy_bullets_group.add(bullet)
 
             # Collision detection — pass powerups_group for drops
-            killed_ids = []
+            killed_info = []
             is_coop = (self.state.current == GameState.NETWORK_PLAYING)
             score = check_bullet_enemy_collisions(
                 self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group,
-                killed_ids_out=killed_ids if is_coop else None,
+                killed_info_out=killed_info if is_coop else None,
             )
             if score > 0:
                 self.player.score += score
                 self.shared_score += score
                 self.sound_manager.play("explosion")
                 self.screen_shake.shake(3.0)
-                # 合作模式：通知伙伴我方杀敌
-                if is_coop and self.net_client and killed_ids:
-                    for eid in killed_ids:
-                        self.net_client.send_enemy_killed(eid, score)
+                # 合作模式：逐个通知伙伴我方杀敌（附带单个敌机分值）
+                if is_coop and self.net_client and killed_info:
+                    for eid, pts in killed_info:
+                        self.net_client.send_enemy_killed(eid, pts)
 
             # Power-up collection
             collected_type = check_player_powerup_collisions(self.player, self.powerups_group)
@@ -825,12 +826,11 @@ class Game:
             draw_game_over_screen(self.virtual_surf, self.player.score)
 
         elif current == GameState.NETWORK_GAME_OVER:
-            won = self.shared_score >= self.partner_state.get("score", 0)
-            draw_network_game_over_screen(
+            pname = self.net_client.username if self.net_client else "我"
+            draw_coop_game_over_screen(
                 self.virtual_surf,
-                won,
                 self.shared_score,
-                self.partner_state.get("score", 0),
+                pname,
                 self.opponent_username,
             )
 
