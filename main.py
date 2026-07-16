@@ -3,6 +3,7 @@ import pygame
 import random
 import sys
 import time
+import math
 from typing import Optional
 from game.settings import *
 from game.state import GameState
@@ -101,6 +102,14 @@ class Game:
         self.opponent_score = 0
         self.opponent_lives = 0
         self.opponent_disconnected = False
+        # ── 合作模式字段 ──
+        self.partner_state = {"x": 0, "y": 0, "lives": 0, "score": 0}
+        self.shared_score = 0
+        self.shared_lives = 0
+        self.coop_seed = 0
+        self.enemy_kill_queue = []  # 待移除的敌机 EID
+        self.coop_frame_counter = 0
+        # ── ──
         self.countdown_number = 0
         self.countdown_timer = 0.0
         self.matchmaking_start_time = 0
@@ -170,11 +179,15 @@ class Game:
         self.opponent_username = data.get("opponent", {}).get("username", "对手")
 
     def _on_game_start(self, data):
-        # 先进入倒计时，3 秒后开始游戏
+        # 获取合作种子，初始化随机序列使双方敌机一致
+        self.coop_seed = data.get("seed", 0)
         self.state.set(GameState.NETWORK_COUNTDOWN)
         self.countdown_number = 3
         self.countdown_timer = time.time()
         self.opponent_disconnected = False
+        self.enemy_kill_queue.clear()
+        self.shared_score = 0
+        self.shared_lives = 6  # 双方各 3 条命，共享生命池
         self._reset_game_state()
 
     def _on_opponent_input(self, data):
@@ -184,6 +197,22 @@ class Game:
             self.opponent_score = input_data["score"]
         if "lives" in input_data:
             self.opponent_lives = input_data["lives"]
+
+    def _on_partner_state(self, data):
+        """接收伙伴的实时位置/状态"""
+        state = data.get("state", {})
+        self.partner_state["x"] = state.get("x", self.partner_state["x"])
+        self.partner_state["y"] = state.get("y", self.partner_state["y"])
+        self.partner_state["lives"] = state.get("lives", 0)
+        self.partner_state["score"] = state.get("score", 0)
+
+    def _on_enemy_killed(self, data):
+        """伙伴击杀了一个敌机 — 从本地移除相同 EID 的敌机"""
+        eid = data.get("enemy_id")
+        pts = data.get("score", 0)
+        self.shared_score += pts
+        if eid is not None:
+            self.enemy_kill_queue.append(eid)
 
     def _on_player_list(self, data):
         # Store online count for lobby display
@@ -213,6 +242,8 @@ class Game:
         self.net_client.on(NetworkEvent.MATCH_FOUND, self._on_match_found)
         self.net_client.on(NetworkEvent.GAME_START, self._on_game_start)
         self.net_client.on(NetworkEvent.OPPONENT_INPUT, self._on_opponent_input)
+        self.net_client.on(NetworkEvent.PARTNER_STATE, self._on_partner_state)
+        self.net_client.on(NetworkEvent.ENEMY_KILLED, self._on_enemy_killed)
         self.net_client.on(NetworkEvent.PLAYER_LIST, self._on_player_list)
 
         self.net_client.connect(username)
@@ -462,10 +493,15 @@ class Game:
         self._reset_game_state()
 
     def _start_network_game(self):
-        """Start a network game."""
+        """Start a network game (co-op mode)."""
         self.state.set(GameState.NETWORK_PLAYING)
         self._reset_game_state()
         self.opponent_score = 0
+        self.coop_frame_counter = 0
+        self.enemy_kill_queue.clear()
+        # 使用合作种子初始化随机序列，确保双方敌机分布一致
+        if self.coop_seed:
+            random.seed(self.coop_seed)
 
     def _reset_game_state(self):
         """Reset all sprite groups and game state for a new game."""
@@ -546,13 +582,21 @@ class Game:
                         self.enemy_bullets_group.add(bullet)
 
             # Collision detection — pass powerups_group for drops
+            killed_ids = []
+            is_coop = (self.state.current == GameState.NETWORK_PLAYING)
             score = check_bullet_enemy_collisions(
-                self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group
+                self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group,
+                killed_ids_out=killed_ids if is_coop else None,
             )
             if score > 0:
                 self.player.score += score
+                self.shared_score += score
                 self.sound_manager.play("explosion")
                 self.screen_shake.shake(3.0)
+                # 合作模式：通知伙伴我方杀敌
+                if is_coop and self.net_client and killed_ids:
+                    for eid in killed_ids:
+                        self.net_client.send_enemy_killed(eid, score)
 
             # Power-up collection
             collected_type = check_player_powerup_collisions(self.player, self.powerups_group)
@@ -573,6 +617,12 @@ class Game:
             if hit:
                 self.sound_manager.play("hit")
                 self.screen_shake.shake(6.0)
+                if self.state.current == GameState.NETWORK_PLAYING:
+                    # 合作模式：从共享生命池扣减
+                    self.shared_lives -= 1
+                    if self.shared_lives > 0:
+                        self.player.lives = max(self.player.lives, 1)
+                        self.player.invincible_timer = PLAYER_INVINCIBLE_FRAMES
                 if self.player.lives <= 0:
                     self._on_player_death()
 
@@ -583,6 +633,12 @@ class Game:
             if enemy_bullet_hit:
                 self.sound_manager.play("hit")
                 self.screen_shake.shake(5.0)
+                if self.state.current == GameState.NETWORK_PLAYING:
+                    # 合作模式：从共享生命池扣减
+                    self.shared_lives -= 1
+                    if self.shared_lives > 0:
+                        self.player.lives = max(self.player.lives, 1)
+                        self.player.invincible_timer = PLAYER_INVINCIBLE_FRAMES
                 if self.player.lives <= 0:
                     self._on_player_death()
 
@@ -612,17 +668,54 @@ class Game:
 
             self.screen_shake.update()
 
-            # 网络对战：发送分数给对手
+            # 网络对战：合作模式同步
             if self.state.current == GameState.NETWORK_PLAYING and self.net_client:
-                self.net_client.send_game_input({
-                    "score": self.player.score,
-                    "lives": self.player.lives,
-                })
+                self.coop_frame_counter += 1
+                # 每 3 帧发送一次位置/状态（降低网络开销）
+                if self.coop_frame_counter % 3 == 0:
+                    self.net_client.send_player_state(
+                        self.player.rect.centerx,
+                        self.player.rect.centery,
+                        self.shared_lives,
+                        self.shared_score,
+                    )
+
+                # 处理伙伴击杀的敌机同步（从本地移除）
+                if self.enemy_kill_queue:
+                    to_kill = set(self.enemy_kill_queue)
+                    self.enemy_kill_queue.clear()
+                    for enemy in list(self.enemies_group):
+                        if getattr(enemy, 'eid', None) in to_kill:
+                            Explosion(enemy.rect.centerx, enemy.rect.centery,
+                                      self.explosions_group)
+                            enemy.kill()
+
+            # 合作模式：共享生命池逻辑（覆盖 player.lives）
+            if self.state.current == GameState.NETWORK_PLAYING:
+                # 实际生命值以 shared_lives 为准
+                if self.shared_lives <= 0:
+                    self._on_player_death()
 
             # 网络对战：检测对手断线 → 暂停游戏显示断线提示
             if self.state.current == GameState.NETWORK_PLAYING and self.opponent_disconnected:
                 # 游戏暂停，等待用户按 ENTER
                 pass
+
+    def _get_partner_sprite(self):
+        """创建伙伴飞船精灵（淡紫色tint，区别于自己的青蓝色）"""
+        from game.graphics.pixel_art import create_player_ship
+        if not hasattr(self, '_partner_img') or self._partner_img is None:
+            ship = create_player_ship(scale=3)
+            # Tint to purple
+            pxarray = pygame.PixelArray(ship)
+            for y in range(ship.get_height()):
+                for x in range(ship.get_width()):
+                    c = ship.unmap_rgb(pxarray[x, y])
+                    if c.a > 0 and (c.r > 0 or c.g > 0 or c.b > 0):
+                        pxarray[x, y] = (min(255, c.r + 80), c.g // 2, min(255, c.b + 60), c.a)
+            del pxarray
+            self._partner_img = ship
+        return self._partner_img
 
     def _on_player_death(self):
         """Handle player death."""
@@ -732,12 +825,12 @@ class Game:
             draw_game_over_screen(self.virtual_surf, self.player.score)
 
         elif current == GameState.NETWORK_GAME_OVER:
-            won = self.player.score >= self.opponent_score if self.opponent_score > 0 else True
+            won = self.shared_score >= self.partner_state.get("score", 0)
             draw_network_game_over_screen(
                 self.virtual_surf,
                 won,
-                self.player.score,
-                self.opponent_score,
+                self.shared_score,
+                self.partner_state.get("score", 0),
                 self.opponent_username,
             )
 
@@ -748,19 +841,27 @@ class Game:
             self.powerups_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
+
+            # 绘制伙伴飞船（淡紫色tint）
+            px, py = self.partner_state.get("x", 0), self.partner_state.get("y", 0)
+            if px > 0 and py > 0:
+                partner_img = self._get_partner_sprite()
+                pr = partner_img.get_rect(center=(px, py))
+                self.virtual_surf.blit(partner_img, pr)
+
             self.player_group.add(self.player)
             self.player_group.draw(self.virtual_surf)
             for explosion in self.explosions_group:
                 explosion.draw(self.virtual_surf)
             draw_network_game_hud(
                 self.virtual_surf,
-                self.player.score,
-                self.player.lives,
+                self.shared_score,
+                self.shared_lives,
                 self.spawner.current_level,
                 self.player.active_powerups,
                 opponent_name=self.opponent_username,
-                opponent_score=self.opponent_score,
-                opponent_lives=self.opponent_lives,
+                opponent_score=self.partner_state.get("score", 0),
+                opponent_lives=self.partner_state.get("lives", 0),
             )
 
             # 对手断线叠加层

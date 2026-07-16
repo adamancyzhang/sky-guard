@@ -12,6 +12,7 @@ class Spawner:
         self.boss_active = False
         self.next_boss_score = BOSS_SCORE_INTERVAL
         self.on_level_up = None  # callback(level: int) -> None
+        self.enemy_counter = 0   # 敌机 ID 计数器（合作模式同步用）
 
     def update(self, enemies_group, score):
         # Don't spawn regular enemies during boss fight
@@ -34,7 +35,8 @@ class Spawner:
         if self.timer >= spawn_interval:
             self.timer = 0
             enemy_type = random.choice(config["enemy_types"])
-            enemy = Enemy(enemy_type)
+            self.enemy_counter += 1
+            enemy = Enemy(enemy_type, eid=self.enemy_counter)
             enemies_group.add(enemy)
 
     def check_boss_spawn(self, score):
@@ -54,3 +56,4 @@ class Spawner:
         self.boss_active = False
         self.next_boss_score = BOSS_SCORE_INTERVAL
         self.on_level_up = None
+        self.enemy_counter = 0

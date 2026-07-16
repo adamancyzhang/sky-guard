@@ -364,13 +364,45 @@ class GameServer:
         await self._start_game(room)
 
     async def _start_game(self, room: Room):
-        """通知房间内的玩家游戏开始"""
+        """通知房间内的玩家游戏开始（含合作种子）"""
+        import hashlib
+        game_seed = int(hashlib.md5(room.room_id.encode()).hexdigest()[:8], 16)
         for p in room.players:
             await p.send({
                 "type": MessageType.GAME_START,
                 "room": room.to_dict(),
+                "seed": game_seed,
             })
-        log.info(f"游戏开始: 房间 {room.room_id} — {room.host.username} vs {room.guest.username}")
+        log.info(f"游戏开始: 房间 {room.room_id} — {room.host.username} vs {room.guest.username} (seed={game_seed})")
+
+    # ── 合作模式数据转发 ────────────────────────────────────────────────
+
+    async def forward_player_state(self, sender: Player, state: dict):
+        """高频转发玩家位置/状态给对手"""
+        if not sender.room_id or sender.room_id not in self.rooms:
+            return
+        room = self.rooms[sender.room_id]
+        opponent = room.guest if sender is room.host else room.host
+        if opponent:
+            await opponent.send({
+                "type": MessageType.PARTNER_STATE,
+                "state": state,
+                "from_player_id": sender.player_id,
+            })
+
+    async def forward_enemy_killed(self, sender: Player, data: dict):
+        """转发敌机击杀事件及分数给对手"""
+        if not sender.room_id or sender.room_id not in self.rooms:
+            return
+        room = self.rooms[sender.room_id]
+        opponent = room.guest if sender is room.host else room.host
+        if opponent:
+            await opponent.send({
+                "type": MessageType.ENEMY_KILLED,
+                "enemy_id": data.get("enemy_id"),
+                "score": data.get("score", 0),
+                "from_player_id": sender.player_id,
+            })
 
     # ── 游戏数据转发 ────────────────────────────────────────────────────
 
@@ -454,6 +486,8 @@ class GameServer:
             MessageType.JOIN_MATCHMAKING: lambda: self.join_matchmaking(player),
             MessageType.LEAVE_MATCHMAKING: lambda: self.leave_matchmaking(player),
             MessageType.GAME_INPUT: lambda: self.forward_game_input(player, msg.get("data", {})),
+            MessageType.PLAYER_STATE: lambda: self.forward_player_state(player, msg.get("state", {})),
+            MessageType.ENEMY_KILLED: lambda: self.forward_enemy_killed(player, msg),
             MessageType.PING: lambda: self.handle_ping(player),
             MessageType.REGISTER: lambda: self._reregister(player, msg),
         }.get(msg_type)

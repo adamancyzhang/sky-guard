@@ -16,6 +16,9 @@ class MessageType:
     JOIN_MATCHMAKING = "join_matchmaking"   # 加入匹配队列
     LEAVE_MATCHMAKING = "leave_matchmaking" # 离开匹配队列
     GAME_INPUT = "game_input"           # 发送游戏输入给对方
+    PLAYER_STATE = "player_state"       # 发送玩家位置/状态（高频）
+    ENEMY_KILLED = "enemy_killed"       # 通知服务器自己击杀了一个敌机
+    COOP_READY = "coop_ready"           # 玩家已准备好开始合作游戏
     PING = "ping"                        # 心跳
 
     # ── 服务器 → 客户端 ──────────────────────────────────
@@ -27,8 +30,12 @@ class MessageType:
     ROOM_CLOSED = "room_closed"          # 房间已关闭
     MATCH_FOUND = "match_found"          # 匹配成功，返回房间信息
     MATCHMAKING_CANCELLED = "matchmaking_cancelled"  # 取消匹配
-    GAME_START = "game_start"            # 游戏开始信号
+    GAME_START = "game_start"            # 游戏开始信号（含种子）
     OPPONENT_INPUT = "opponent_input"    # 转发对方的游戏输入
+    PARTNER_STATE = "partner_state"      # 转发伙伴的位置/状态（高频）
+    ENEMY_KILLED = "enemy_killed"        # 伙伴击杀了一个敌机
+    GAME_SEED = "game_seed"              # 服务器下发的随机种子
+    COOP_START = "coop_start"            # 双方就绪，正式开战
     PONG = "pong"                        # 心跳回复
     PLAYER_LIST = "player_list"          # 在线玩家列表
     ERROR = "error"                      # 错误消息
@@ -50,6 +57,10 @@ class NetworkEvent:
     MATCHMAKING_CANCELLED = "matchmaking_cancelled"
     GAME_START = "game_start"
     OPPONENT_INPUT = "opponent_input"
+    PARTNER_STATE = "partner_state"
+    ENEMY_KILLED = "enemy_killed"
+    GAME_SEED = "game_seed"
+    COOP_START = "coop_start"
     PLAYER_LIST = "player_list"
     ROOM_INFO = "room_info"
 

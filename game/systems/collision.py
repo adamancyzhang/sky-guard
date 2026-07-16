@@ -6,9 +6,10 @@ from game.sprites.explosion import Explosion
 from game.sprites.powerup import PowerUp
 
 
-def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group, powerups_group=None):
+def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group, powerups_group=None, killed_ids_out=None):
     """Check bullet-enemy collisions. Returns score earned this frame.
     When powerups_group is provided, enemies may drop power-ups on death.
+    When killed_ids_out (list) is provided, killed enemy EIDs are appended.
     """
     score_earned = 0
     for bullet in bullets_group:
@@ -18,6 +19,8 @@ def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group
             bullet.kill()
             if destroyed:
                 score_earned += enemy.score_value
+                if killed_ids_out is not None:
+                    killed_ids_out.append(getattr(enemy, 'eid', -1))
                 Explosion(enemy.rect.centerx, enemy.rect.centery, explosions_group)
                 # Maybe drop a power-up
                 if powerups_group is not None and random.random() < POWERUP_DROP_CHANCE:

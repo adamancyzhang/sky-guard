@@ -289,6 +289,18 @@ class NetworkClient:
         elif msg_type == MessageType.OPPONENT_INPUT:
             self._emit(NetworkEvent.OPPONENT_INPUT, msg)
 
+        elif msg_type == MessageType.PARTNER_STATE:
+            self._emit(NetworkEvent.PARTNER_STATE, msg)
+
+        elif msg_type == MessageType.ENEMY_KILLED:
+            self._emit(NetworkEvent.ENEMY_KILLED, msg)
+
+        elif msg_type == MessageType.GAME_SEED:
+            self._emit(NetworkEvent.GAME_SEED, msg)
+
+        elif msg_type == MessageType.COOP_START:
+            self._emit(NetworkEvent.COOP_START, msg)
+
         elif msg_type == MessageType.PLAYER_LIST:
             self._emit(NetworkEvent.PLAYER_LIST, msg)
 
@@ -346,6 +358,21 @@ class NetworkClient:
     def send_game_input(self, data: dict):
         """发送游戏输入数据给对手"""
         self.send({"type": MessageType.GAME_INPUT, "data": data})
+
+    def send_player_state(self, x: float, y: float, lives: int, score: int):
+        """高频发送玩家位置/状态（合作模式用）"""
+        self.send({
+            "type": MessageType.PLAYER_STATE,
+            "state": {"x": x, "y": y, "lives": lives, "score": score},
+        })
+
+    def send_enemy_killed(self, enemy_id: int, score: int = 0):
+        """发送敌机击杀事件"""
+        self.send({
+            "type": MessageType.ENEMY_KILLED,
+            "enemy_id": enemy_id,
+            "score": score,
+        })
 
     def request_player_list(self):
         """请求在线玩家列表"""

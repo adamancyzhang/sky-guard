@@ -6,8 +6,9 @@ from game.graphics.pixel_art import create_enemy_surface
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, enemy_type="basic", *groups):
+    def __init__(self, enemy_type="basic", eid=0, *groups):
         super().__init__(*groups)
+        self.eid = eid  # 全局唯一敌机 ID（用于合作模式同步）
         self.enemy_type = enemy_type
         config = ENEMY_TYPES[enemy_type]
         self.image = create_enemy_surface(enemy_type, scale=3)
