@@ -567,11 +567,7 @@ def draw_network_game_hud(screen, score, lives, level, active_powerups,
             )
             screen.blit(opp_lives, lives_rect)
 
-        # Divider
-        pygame.draw.line(screen, DARK_GRAY,
-                         (SCREEN_WIDTH // 2, 0),
-                         (SCREEN_WIDTH // 2, SCREEN_HEIGHT),
-                         1)
+        # 合作模式不画分割线
 
 
 def draw_network_game_over_screen(screen, won, your_score, opponent_score, opponent_name):

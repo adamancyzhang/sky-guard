@@ -108,6 +108,7 @@ class Game:
         self.shared_score = 0
         self.shared_lives = 0
         self.coop_seed = 0
+        self.is_host = False
         self.enemy_kill_queue = []  # 待移除的敌机 EID
         self.partner_bullets = []  # 伙伴子弹视觉列表 [(x, y, dy, life), ...]
         self.coop_frame_counter = 0
@@ -151,10 +152,12 @@ class Game:
 
     def _on_room_created(self, data):
         self.current_room = data.get("room", {})
+        self.is_host = True
         self.state.set(GameState.ROOM)
 
     def _on_room_joined(self, data):
         self.current_room = data.get("room", {})
+        self.is_host = False
         self.state.set(GameState.ROOM)
 
     def _on_player_joined(self, data):
@@ -179,6 +182,11 @@ class Game:
     def _on_match_found(self, data):
         self.current_room = data.get("room", {})
         self.opponent_username = data.get("opponent", {}).get("username", "对手")
+        # 匹配时 room 的 host 是匹配发起方
+        room = data.get("room", {})
+        host_id = room.get("host", {}).get("player_id", "")
+        self.is_host = (self.net_client is not None and
+                        self.net_client.player_id == host_id)
 
     def _on_game_start(self, data):
         # 获取合作种子，初始化随机序列使双方敌机一致
@@ -228,11 +236,10 @@ class Game:
         bx = data.get("x", 0)
         by = data.get("y", 0)
         is_triple = data.get("is_triple", False)
-        # 主子弹
-        self.partner_bullets.append([bx, by, 0, 40])  # x, y, unused, life
+        self.partner_bullets.append([bx, by, 0, 100])
         if is_triple:
-            self.partner_bullets.append([bx - 12, by, 0, 40])
-            self.partner_bullets.append([bx + 12, by, 0, 40])
+            self.partner_bullets.append([bx - 12, by, 0, 100])
+            self.partner_bullets.append([bx + 12, by, 0, 100])
 
     def _on_player_list(self, data):
         # Store online count for lobby display
@@ -520,7 +527,10 @@ class Game:
         self.opponent_score = 0
         self.coop_frame_counter = 0
         self.enemy_kill_queue.clear()
-        # 使用合作种子初始化随机序列，确保双方敌机分布一致
+        # 合作模式：P1 左 1/4，P2 右 3/4
+        offset = SCREEN_WIDTH // 4
+        self.player.rect.centerx = offset if self.is_host else SCREEN_WIDTH - offset
+        # 使用合作种子初始化随机序列
         if self.coop_seed:
             random.seed(self.coop_seed)
 
@@ -737,12 +747,11 @@ class Game:
                 pass
 
     def _update_partner_bullets(self):
-        """更新伙伴子弹位置和生命周期"""
-        speed = BULLET_SPEED * 0.8  # slightly slower for visual distinction
+        """更新伙伴子弹位置（和玩家子弹一样射到顶）"""
         alive = []
         for b in self.partner_bullets:
-            b[1] += speed  # y movement (speed is negative = upward)
-            b[3] -= 1      # life
+            b[1] += BULLET_SPEED
+            b[3] -= 1
             if b[3] > 0 and b[1] > -20:
                 alive.append(b)
         self.partner_bullets = alive

@@ -1,35 +1,41 @@
 # game/sprites/enemy.py
 import pygame
 import random
+import math
 from game.settings import *
 from game.graphics.pixel_art import create_enemy_surface
 
 
 class Enemy(pygame.sprite.Sprite):
-    def __init__(self, enemy_type="basic", eid=0, *groups):
+    def __init__(self, enemy_type="basic", eid=0, x=None, *groups):
         super().__init__(*groups)
         self.eid = eid  # 全局唯一敌机 ID（用于合作模式同步）
         self.enemy_type = enemy_type
         config = ENEMY_TYPES[enemy_type]
         self.image = create_enemy_surface(enemy_type, scale=3)
         self.rect = self.image.get_rect()
-        self.rect.x = random.randint(0, SCREEN_WIDTH - self.rect.width)
+        if x is not None:
+            self.rect.x = x
+        else:
+            self.rect.x = random.randint(0, SCREEN_WIDTH - self.rect.width)
         self.rect.y = -self.rect.height  # spawn from above
         self.speed = config["speed"]
         self.hp = config["hp"]
         self.score_value = config["score"]
-        # Slight lateral wobble
-        self.wobble = random.uniform(-1, 1)
-        self.wobble_speed = random.uniform(0.02, 0.05)
+        # 正弦摆动，不偏向右
+        self.wobble_phase = random.uniform(0, 2 * 3.14159)
+        self.wobble_amp = random.uniform(0.3, 1.0)
+        self.wobble_freq = random.uniform(0.03, 0.06)
+        self._frame = 0
         # Shooting ability
-        self.can_shoot = enemy_type in ("fast", "tank")  # basic enemies don't shoot
+        self.can_shoot = enemy_type in ("fast", "tank")
         self.shoot_timer = random.randint(0, ENEMY_SHOOT_INTERVAL)
 
     def update(self, *args, **kwargs):
+        self._frame += 1
         self.rect.y += self.speed
-        # Lateral wobble
-        self.wobble += self.wobble_speed
-        self.rect.x += self.wobble * 0.5
+        # 正弦横向摆动 — 不偏向右
+        self.rect.x += math.sin(self._frame * self.wobble_freq + self.wobble_phase) * self.wobble_amp
         # Boundary clamp
         self.rect.x = max(0, min(self.rect.x, SCREEN_WIDTH - self.rect.width))
         # Destroy if off-screen
