@@ -369,13 +369,16 @@ class NetworkClient:
             "state": {"x": x, "y": y, "lives": lives, "score": score},
         })
 
-    def send_enemy_killed(self, enemy_id: int, score: int = 0):
-        """发送敌机击杀事件"""
-        self.send({
+    def send_enemy_killed(self, enemy_id: int, score: int = 0, powerup_type: str = None):
+        """发送敌机击杀事件（附带道具信息用于伙伴端渲染）"""
+        msg = {
             "type": MessageType.ENEMY_KILLED,
             "enemy_id": enemy_id,
             "score": score,
-        })
+        }
+        if powerup_type:
+            msg["powerup"] = powerup_type
+        self.send(msg)
 
     def send_bullet_spawned(self, x: float, y: float, is_triple: bool = False):
         """发送射击事件（伙伴端渲染子弹）"""

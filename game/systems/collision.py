@@ -9,7 +9,7 @@ from game.sprites.powerup import PowerUp
 def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group, powerups_group=None, killed_info_out=None):
     """Check bullet-enemy collisions. Returns score earned this frame.
     When powerups_group is provided, enemies may drop power-ups on death.
-    When killed_info_out (list) is provided, appends (eid, score) tuples.
+    When killed_info_out (list) is provided, appends (eid, score, ptype_or_None) tuples.
     """
     score_earned = 0
     for bullet in bullets_group:
@@ -19,13 +19,14 @@ def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group
             bullet.kill()
             if destroyed:
                 score_earned += enemy.score_value
-                if killed_info_out is not None:
-                    killed_info_out.append((getattr(enemy, 'eid', -1), enemy.score_value))
-                Explosion(enemy.rect.centerx, enemy.rect.centery, explosions_group)
-                # Maybe drop a power-up
+                # 判断是否掉落道具
+                dropped_ptype = None
                 if powerups_group is not None and random.random() < POWERUP_DROP_CHANCE:
-                    ptype = random.choice(list(POWERUP_TYPES.keys()))
-                    PowerUp(enemy.rect.centerx, enemy.rect.centery, ptype, powerups_group)
+                    dropped_ptype = random.choice(list(POWERUP_TYPES.keys()))
+                    PowerUp(enemy.rect.centerx, enemy.rect.centery, dropped_ptype, powerups_group)
+                if killed_info_out is not None:
+                    killed_info_out.append((getattr(enemy, 'eid', -1), enemy.score_value, dropped_ptype))
+                Explosion(enemy.rect.centerx, enemy.rect.centery, explosions_group)
                 enemy.kill()
             break  # one bullet damages at most one enemy
     return score_earned

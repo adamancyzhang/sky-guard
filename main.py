@@ -210,12 +210,18 @@ class Game:
         self.partner_state["score"] = state.get("score", 0)
 
     def _on_enemy_killed(self, data):
-        """伙伴击杀了一个敌机 — 从本地移除相同 EID 的敌机"""
+        """伙伴击杀了一个敌机 — 从本地移除相同 EID 的敌机，同步道具"""
+        from game.sprites.powerup import PowerUp
         eid = data.get("enemy_id")
         pts = data.get("score", 0)
         self.shared_score += pts
         if eid is not None:
             self.enemy_kill_queue.append(eid)
+        # 伙伴击杀掉落了道具 — 在本地也生成一个
+        ptype = data.get("powerup")
+        if ptype:
+            PowerUp(self.partner_state.get("x", SCREEN_WIDTH // 2),
+                    self.partner_state.get("y", 0), ptype, self.powerups_group)
 
     def _on_partner_bullet(self, data):
         """伙伴发射了子弹 — 在本地渲染"""
@@ -550,6 +556,7 @@ class Game:
             return
 
         if self.state.is_playing():
+            is_coop = (self.state.current == GameState.NETWORK_PLAYING)
             self.background.update()
             self._handle_shooting()
             self.player.update(pygame.key.get_pressed())
@@ -557,7 +564,8 @@ class Game:
             self.enemies_group.update()
             self.explosions_group.update()
             self.powerups_group.update()
-            self.spawner.update(self.enemies_group, self.player.score)
+            self.spawner.update(self.enemies_group,
+                               self.shared_score if is_coop else self.player.score)
 
             # Enemy shooting
             for enemy in self.enemies_group:
@@ -570,7 +578,9 @@ class Game:
             self.enemy_bullets_group.update()
 
             # Boss spawn check
-            if self.spawner.check_boss_spawn(self.player.score):
+            if self.spawner.check_boss_spawn(
+                self.shared_score if is_coop else self.player.score,
+            ):
                 boss = Boss()
                 self.boss_group.add(boss)
                 # Clear regular enemies for dramatic effect
@@ -598,7 +608,6 @@ class Game:
 
             # Collision detection — pass powerups_group for drops
             killed_info = []
-            is_coop = (self.state.current == GameState.NETWORK_PLAYING)
             score = check_bullet_enemy_collisions(
                 self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group,
                 killed_info_out=killed_info if is_coop else None,
@@ -608,10 +617,10 @@ class Game:
                 self.shared_score += score
                 self.sound_manager.play("explosion")
                 self.screen_shake.shake(3.0)
-                # 合作模式：逐个通知伙伴我方杀敌（附带单个敌机分值）
+                # 合作模式：逐个通知伙伴我方杀敌（附带单个敌机分值+道具）
                 if is_coop and self.net_client and killed_info:
-                    for eid, pts in killed_info:
-                        self.net_client.send_enemy_killed(eid, pts)
+                    for eid, pts, ptype in killed_info:
+                        self.net_client.send_enemy_killed(eid, pts, ptype)
 
             # Power-up collection
             collected_type = check_player_powerup_collisions(self.player, self.powerups_group)

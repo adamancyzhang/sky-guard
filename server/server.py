@@ -397,12 +397,15 @@ class GameServer:
         room = self.rooms[sender.room_id]
         opponent = room.guest if sender is room.host else room.host
         if opponent:
-            await opponent.send({
+            msg = {
                 "type": MessageType.ENEMY_KILLED,
                 "enemy_id": data.get("enemy_id"),
                 "score": data.get("score", 0),
                 "from_player_id": sender.player_id,
-            })
+            }
+            if data.get("powerup"):
+                msg["powerup"] = data["powerup"]
+            await opponent.send(msg)
 
     async def forward_bullet(self, sender: Player, msg: dict):
         """转发射击事件给对手（用于显示伙伴子弹）"""
