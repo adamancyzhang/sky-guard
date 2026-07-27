@@ -848,10 +848,11 @@ class Game:
         )
 
     def _handle_shooting(self):
-        """Enhanced shooting logic: weapon levels, charge, options, sub-weapon."""
+        """Enhanced shooting logic: continuous fire (Space), charge (Shift), options, sub-weapon (X)."""
         keys = pygame.key.get_pressed()
         space_held = keys[pygame.K_SPACE] or keys[pygame.K_z]
-        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] or keys[pygame.K_x]
+        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
+        x_held = keys[pygame.K_x]
 
         # ── 武器切换 (Q/E) ──
         if keys[pygame.K_q] and self._wpn_switch_cooldown <= 0:
@@ -863,32 +864,28 @@ class Game:
         elif self._wpn_switch_cooldown > 0:
             self._wpn_switch_cooldown -= 1
 
-        # ── 子武器 (Shift) ──
-        if shift_held and self.player.can_fire_sub_weapon():
+        # ── 子武器 (X) ──
+        if x_held and self.player.can_fire_sub_weapon():
             sub_type, sub_config = self.player.fire_sub_weapon()
             self._fire_sub_weapon(sub_type, sub_config)
 
-        # ── 主武器射击 & 蓄力 ──
-        self.player.is_firing = False  # 默认不射击
-
+        # ── 主武器（空格）— 长按持续自动射击 ──
+        self.player.is_firing = False
         if space_held:
+            if self.player.can_shoot():
+                self._fire_primary()
+            self.player.is_firing = True
+
+        # ── 蓄力射击（Shift）— 按住蓄力，松开释放 ──
+        if shift_held:
             if not self.player.is_charging:
                 self.player.start_charge()
             self.player.continue_charge()
-
-            # 如果蓄力时间不足第一档，发射普通子弹
-            if self.player.charge_timer < CHARGE_TIERS[0]["hold_frames"]:
-                if self.player.can_shoot():
-                    self._fire_primary()
         else:
-            # 空格释放 — 检查蓄力释放
             if self.player.is_charging:
                 released, tier = self.player.release_charge()
                 if released:
                     self._fire_charge(tier)
-            else:
-                # 不在蓄力中，也没按空格 — 正常状态
-                pass
 
     def _fire_primary(self):
         """Fire primary weapon based on current weapon type + level."""
