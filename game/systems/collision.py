@@ -2,7 +2,7 @@
 import random
 import math
 import pygame
-from game.settings import POWERUP_DROP_CHANCE, POWERUP_TYPES, ITEM_DROP_CHANCE, ITEM_TYPES
+from game.settings import POWERUP_DROP_CHANCE, POWERUP_TYPES, ITEM_DROP_CHANCE, ITEM_TYPES, SCREEN_WIDTH, SCREEN_HEIGHT
 from game.sprites.explosion import Explosion
 from game.sprites.powerup import PowerUp
 from game.sprites.item import Item

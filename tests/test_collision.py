@@ -84,6 +84,74 @@ def test_tank_enemy_needs_multiple_hits():
     print("PASS: test_tank_enemy_needs_multiple_hits (3rd hit - destroyed)")
 
 
+# ── Item drop tests ──
+
+def test_item_drop_with_items_group():
+    """Enemies should be able to drop items when items_group is provided.
+    This is a probabilistic test — verifies the items_group parameter doesn't crash
+    and that the function signature accepts the new parameter."""
+    bullets = pygame.sprite.Group()
+    enemies = pygame.sprite.Group()
+    explosions = pygame.sprite.Group()
+    items = pygame.sprite.Group()
+
+    from game.sprites.bullet import Bullet
+    bullet = Bullet(100, 200)
+    bullet.damage = 10
+    enemy = Enemy("basic")
+    enemy.rect.center = (100, 200)
+    bullets.add(bullet)
+    enemies.add(enemy)
+
+    score = check_bullet_enemy_collisions(bullets, enemies, explosions,
+                                          items_group=items)
+    assert score == 10
+    assert len(enemies) == 0
+    assert len(bullets) == 0
+    print("PASS: test_item_drop_with_items_group (no crash)")
+
+
+def test_item_drop_powerup_drop_independence():
+    """Item drops should work alongside powerup drops without interference."""
+    bullets = pygame.sprite.Group()
+    enemies = pygame.sprite.Group()
+    explosions = pygame.sprite.Group()
+    powerups = pygame.sprite.Group()
+    items = pygame.sprite.Group()
+
+    from game.sprites.bullet import Bullet
+    bullet = Bullet(100, 200)
+    bullet.damage = 10
+    enemy = Enemy("basic")
+    enemy.rect.center = (100, 200)
+    bullets.add(bullet)
+    enemies.add(enemy)
+
+    score = check_bullet_enemy_collisions(bullets, enemies, explosions,
+                                          powerups_group=powerups,
+                                          items_group=items)
+    assert score == 10
+    print("PASS: test_item_drop_powerup_drop_independence (no interference)")
+
+
+def test_item_drop_param_defaults():
+    """Calling collision check without items_group should still work (backward compat)."""
+    bullets = pygame.sprite.Group()
+    enemies = pygame.sprite.Group()
+    explosions = pygame.sprite.Group()
+
+    bullet = Bullet(100, 200)
+    enemy = Enemy("basic")
+    enemy.rect.center = (100, 200)
+    bullets.add(bullet)
+    enemies.add(enemy)
+
+    # Original signature: no items_group parameter
+    score = check_bullet_enemy_collisions(bullets, enemies, explosions)
+    assert score == 10
+    print("PASS: test_item_drop_param_defaults (backward compat)")
+
+
 if __name__ == "__main__":
     test_bullet_hits_enemy()
     test_bullet_misses_enemy()
