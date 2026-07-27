@@ -115,7 +115,7 @@ BOSS_PHASE_THRESHOLDS = {
 }
 
 # Power-up settings
-POWERUP_DROP_CHANCE = 0.15        # 15% chance per enemy kill
+POWERUP_DROP_CHANCE = 0.20        # 20% chance per enemy kill (increased from 15% due to larger pool)
 POWERUP_SPEED = 2                  # fall speed
 POWERUP_TYPES = {
     "shield": {
@@ -147,6 +147,16 @@ POWERUP_TYPES = {
         "color": (255, 105, 180),  # pink
         "duration": 0,             # instant
         "description_key": "item_life",
+    },
+    "power": {   # weapon upgrade (permanent)
+        "color": (255, 255, 100),  # gold
+        "duration": 0,
+        "description_key": "item_power",
+    },
+    "option": {  # add an option satellite
+        "color": (50, 255, 255),   # cyan
+        "duration": 0,
+        "description_key": "item_option",
     },
 }
 
@@ -237,3 +247,125 @@ BOSS_PARTICLE_RATE = 0.2               # particles per frame
 
 # Transition
 BG_TRANSITION_DURATION = 30  # frames (0.5s at 60fps)
+
+# ══════════════════════════════════════════════════════════════════════
+# 武器系统配置
+# ══════════════════════════════════════════════════════════════════════
+
+# 武器类型枚举
+WEAPON_TYPES = ["normal", "spread", "laser", "homing"]
+
+# 每种武器名称（用于 l10n key）
+WEAPON_NAMES = {
+    "normal": "weapon_normal",
+    "spread": "weapon_spread",
+    "laser": "weapon_laser",
+    "homing": "weapon_homing",
+}
+
+# 武器等级配置
+# level: {"bullet_count": N, "spread_angle": deg, "damage": N, "speed_mult": float, "cooldown_mult": float}
+WEAPON_LEVEL_CONFIGS = {
+    "normal": {
+        1: {"count": 1, "spread_angle": 0,   "damage": 1, "speed_mult": 1.0, "cooldown_mult": 1.0},
+        2: {"count": 2, "spread_angle": 6,   "damage": 1, "speed_mult": 1.0, "cooldown_mult": 1.0},
+        3: {"count": 3, "spread_angle": 12,  "damage": 1, "speed_mult": 1.0, "cooldown_mult": 0.9},
+        4: {"count": 5, "spread_angle": 20,  "damage": 1, "speed_mult": 1.0, "cooldown_mult": 0.8},
+        5: {"count": 7, "spread_angle": 25,  "damage": 1, "speed_mult": 1.2, "cooldown_mult": 0.7},
+    },
+    "spread": {
+        1: {"count": 3, "spread_angle": 20,  "damage": 1, "speed_mult": 1.0, "cooldown_mult": 1.3},
+        2: {"count": 3, "spread_angle": 25,  "damage": 1, "speed_mult": 1.0, "cooldown_mult": 1.2},
+        3: {"count": 5, "spread_angle": 30,  "damage": 1, "speed_mult": 1.0, "cooldown_mult": 1.1},
+        4: {"count": 5, "spread_angle": 35,  "damage": 2, "speed_mult": 1.0, "cooldown_mult": 1.0},
+        5: {"count": 7, "spread_angle": 40,  "damage": 2, "speed_mult": 1.0, "cooldown_mult": 0.9},
+    },
+    "laser": {
+        1: {"count": 1, "spread_angle": 0,   "damage": 2, "speed_mult": 2.0, "cooldown_mult": 1.8},
+        2: {"count": 1, "spread_angle": 0,   "damage": 3, "speed_mult": 2.0, "cooldown_mult": 1.6},
+        3: {"count": 2, "spread_angle": 0,   "damage": 3, "speed_mult": 2.0, "cooldown_mult": 1.5},
+        4: {"count": 2, "spread_angle": 0,   "damage": 4, "speed_mult": 2.5, "cooldown_mult": 1.4},
+        5: {"count": 3, "spread_angle": 5,    "damage": 5, "speed_mult": 2.5, "cooldown_mult": 1.3},
+    },
+    "homing": {
+        1: {"count": 1, "spread_angle": 0,   "damage": 1, "speed_mult": 0.8, "cooldown_mult": 1.2},
+        2: {"count": 2, "spread_angle": 10,  "damage": 1, "speed_mult": 0.8, "cooldown_mult": 1.1},
+        3: {"count": 2, "spread_angle": 15,  "damage": 1, "speed_mult": 0.9, "cooldown_mult": 1.0},
+        4: {"count": 3, "spread_angle": 15,  "damage": 2, "speed_mult": 0.9, "cooldown_mult": 0.9},
+        5: {"count": 4, "spread_angle": 20,  "damage": 2, "speed_mult": 1.0, "cooldown_mult": 0.8},
+    },
+}
+
+# 最大武器等级
+MAX_WEAPON_LEVEL = 5
+
+# 初始武器等级
+INITIAL_WEAPON_LEVEL = 1
+
+# 蓄力射击配置
+CHARGE_SHOT_ENABLED = True
+CHARGE_TIERS = [
+    {"hold_frames": 20,  "damage_mult": 2.0, "speed_mult": 1.5, "size_mult": 2.0},   # 蓄力 1 档
+    {"hold_frames": 50,  "damage_mult": 4.0, "speed_mult": 2.0, "size_mult": 3.0},   # 蓄力 2 档
+    {"hold_frames": 90,  "damage_mult": 8.0, "speed_mult": 3.0, "size_mult": 4.0, "piercing": True},  # 蓄力 3 档
+]
+
+# 连击系统
+COMBO_THRESHOLD = 5          # 每 5 连击奖一次
+COMBO_BUFF_FRAMES = 120       # 奖励持续 2 秒
+COMBO_RESET_FRAMES = 90       # 1.5 秒内无击杀重置连击
+COMBO_MULTIPLIER_PER_TIER = 2  # 每档连击分数倍率
+
+# 子武器系统
+SUB_WEAPONS = {
+    "missile": {
+        "name_key": "sub_missile",
+        "energy_cost": 15,
+        "cooldown": 20,
+        "color": (255, 200, 50),
+        "damage": 2,
+        "speed": 6,
+        "homing_strength": 0.05,
+    },
+    "bomb": {
+        "name_key": "sub_bomb",
+        "energy_cost": 30,
+        "cooldown": 40,
+        "color": (255, 100, 50),
+        "damage": 4,
+        "speed": 4,
+        "explosion_radius": 40,
+    },
+    "mine": {
+        "name_key": "sub_mine",
+        "energy_cost": 10,
+        "cooldown": 10,
+        "color": (100, 255, 100),
+        "damage": 3,
+        "speed": 0,
+        "drop_speed": 2,
+    },
+}
+
+SUB_WEAPON_MAX_ENERGY = 100
+SUB_WEAPON_REGEN_RATE = 0.3   # 每帧恢复
+SUB_WEAPON_ENERGY_KILL_REWARD = 5  # 击杀回复
+
+# Option 辅助机
+OPTION_ENABLED = True
+OPTION_MAX_COUNT = 2
+OPTION_OFFSET_X = 35           # 与玩家的水平偏移
+OPTION_OFFSET_Y = -20          # 与玩家的垂直偏移（负=上方）
+OPTION_FOLLOW_SPEED = 0.15     # 跟随平滑度
+OPTION_SHOOT_DELAY = 4         # 比玩家延迟几帧射击
+
+# Weapon power-up item color
+POWERUP_P_COLOR = (255, 255, 100)  # 武器升级道具 = 金色
+
+# 武器颜色映射
+WEAPON_COLORS = {
+    "normal": YELLOW,
+    "spread": ORANGE,
+    "laser": CYAN,
+    "homing": GREEN,
+}

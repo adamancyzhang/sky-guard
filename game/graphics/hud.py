@@ -87,7 +87,7 @@ def _render_text(text, size, color, bold=False):
 
 # ── HUD (in-game) ──────────────────────────────────────────────────
 
-def draw_hud(screen, score, lives, level, active_powerups=None):
+def draw_hud(screen, score, lives, level, active_powerups=None, player=None):
     from game.l10n import L10n
     _ = L10n._
 
@@ -112,6 +112,10 @@ def draw_hud(screen, score, lives, level, active_powerups=None):
     # Active power-up indicators (bottom-left)
     if active_powerups:
         draw_powerup_indicators(screen, active_powerups)
+
+    # Weapon system HUD
+    if player is not None:
+        draw_weapon_hud(screen, player)
 
 
 # ── Main Menu ──────────────────────────────────────────────────────
@@ -247,7 +251,7 @@ def draw_help_screen(screen):
     screen.blit(ctrl_title, (_MARGIN, y))
     y += 28
 
-    for key in ["controls_move", "controls_shoot", "controls_pause"]:
+    for key in ["controls_move", "controls_shoot", "controls_weapon", "controls_charge", "controls_sub", "controls_pause"]:
         line = body_font.render(_(key), True, WHITE)
         screen.blit(line, (_MARGIN + 8, y))
         y += 22
@@ -259,7 +263,7 @@ def draw_help_screen(screen):
     screen.blit(items_title, (_MARGIN, y))
     y += 28
 
-    for key in ["item_shield", "item_rapid", "item_triple", "item_bomb", "item_speed", "item_life"]:
+    for key in ["item_shield", "item_rapid", "item_triple", "item_bomb", "item_speed", "item_life", "item_power", "item_option"]:
         line = body_font.render(_(key), True, WHITE)
         screen.blit(line, (_MARGIN + 8, y))
         y += 22
@@ -286,6 +290,88 @@ def draw_powerup_indicators(screen, active_powerups):
         surf = font.render(text, True, color)
         screen.blit(surf, (x, y))
         x += surf.get_width() + 10
+
+
+def draw_weapon_hud(screen, player):
+    """Draw weapon system HUD elements: weapon type/level, charge bar, combo, sub-weapon."""
+    from game.l10n import L10n
+    _ = L10n._
+
+    font_small = _get_font(15)
+    font_med = _get_font(18)
+
+    y_start = SCREEN_HEIGHT - 78
+    x = _MARGIN
+
+    # ── 武器类型 & 等级 ──
+    wt = player.active_weapon
+    level = player.get_weapon_level()
+    wpn_name = WEAPON_NAMES.get(wt, wt)
+    wpn_text = f"{_(wpn_name)} LV{level}"
+    wpn_surf = font_med.render(wpn_text, True, WEAPON_COLORS.get(wt, WHITE))
+    screen.blit(wpn_surf, (x, y_start))
+
+    # ── 蓄力进度条（蓄力中才显示）──
+    if player.is_charging and player.charge_timer > 0:
+        progress = player.get_charge_progress()
+        bar_x = x
+        bar_y = y_start + 20
+        bar_w = 100
+        bar_h = 6
+
+        # Background
+        pygame.draw.rect(screen, DARK_GRAY, (bar_x, bar_y, bar_w, bar_h), border_radius=2)
+        # Fill
+        fill_w = int(bar_w * min(1.0, progress))
+        if progress < 0.33:
+            color = GREEN
+        elif progress < 0.66:
+            color = YELLOW
+        else:
+            color = RED
+        pygame.draw.rect(screen, color, (bar_x, bar_y, fill_w, bar_h), border_radius=2)
+        # Border
+        pygame.draw.rect(screen, WHITE, (bar_x, bar_y, bar_w, bar_h), 1, border_radius=2)
+
+        # Tier indicator
+        if player.charge_tier > 0:
+            tier_text = f"CHG {player.charge_tier}"
+            tier_surf = font_small.render(tier_text, True, color)
+            screen.blit(tier_surf, (bar_x + bar_w + 6, bar_y - 2))
+
+    # ── 连击（右侧） ──
+    if player.combo_count > 0:
+        combo_x = SCREEN_WIDTH - _MARGIN - 70
+        combo_color = YELLOW if player.has_combo_buff() else LIGHT_GRAY
+        combo_surf = font_med.render(f"{player.combo_count}x", True, combo_color)
+        combo_rect = combo_surf.get_rect(topright=(SCREEN_WIDTH - _MARGIN, y_start))
+        screen.blit(combo_surf, combo_rect)
+
+        if player.has_combo_buff():
+            buff_surf = font_small.render(f"x{player.combo_multiplier:.1f}", True, combo_color)
+            buff_rect = buff_surf.get_rect(topright=(SCREEN_WIDTH - _MARGIN, y_start + 18))
+            screen.blit(buff_surf, buff_rect)
+
+    # ── 子武器能量条（左侧底部） ──
+    energy_y = y_start + 40
+    energy_ratio = player.get_sub_weapon_energy_ratio()
+
+    # Label
+    sub_name = SUB_WEAPONS.get(player.sub_weapon_type, {}).get("name_key", "sub_missile")
+    sub_surf = font_small.render(_(sub_name), True, WHITE)
+    screen.blit(sub_surf, (x, energy_y))
+
+    # Energy bar
+    energy_bar_w = 70
+    energy_bar_h = 5
+    energy_bar_x = x + 52
+    energy_bar_y = energy_y + 2
+
+    pygame.draw.rect(screen, DARK_GRAY, (energy_bar_x, energy_bar_y, energy_bar_w, energy_bar_h), border_radius=2)
+    e_fill = int(energy_bar_w * energy_ratio)
+    e_color = GREEN if energy_ratio > 0.5 else (YELLOW if energy_ratio > 0.25 else RED)
+    pygame.draw.rect(screen, e_color, (energy_bar_x, energy_bar_y, e_fill, energy_bar_h), border_radius=2)
+    pygame.draw.rect(screen, WHITE, (energy_bar_x, energy_bar_y, energy_bar_w, energy_bar_h), 1, border_radius=2)
 
 
 # ══════════════════════════════════════════════════════════════════════

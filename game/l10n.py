@@ -66,6 +66,20 @@ _STRINGS = {
         "opponent_disconnected": "Opponent disconnected!",
         "opponent_disconnected_hint": "ENTER to return to lobby",
         "countdown_ready": "Ready!",
+
+        # ── Weapon System (en) ──
+        "weapon_normal": "Normal",
+        "weapon_spread": "Spread",
+        "weapon_laser": "Laser",
+        "weapon_homing": "Homing",
+        "sub_missile": "MIS",
+        "sub_bomb": "BOM",
+        "sub_mine": "MIN",
+        "item_power": "Power Up  -  +1 weapon level",
+        "item_option": "Option  -  +1 floating satellite",
+        "controls_weapon": "Q/E  -  Switch weapon",
+        "controls_sub": "Shift/X  -  Sub-weapon",
+        "controls_charge": "Hold Space  -  Charge shot",
     },
     "zh": {
         "title": "天穹守卫",
@@ -131,6 +145,20 @@ _STRINGS = {
         "opponent_disconnected": "对手已断开连接！",
         "opponent_disconnected_hint": "ENTER 返回大厅",
         "countdown_ready": "准备！",
+
+        # ── 武器系统 (zh) ──
+        "weapon_normal": "标准",
+        "weapon_spread": "散弹",
+        "weapon_laser": "激光",
+        "weapon_homing": "追踪",
+        "sub_missile": "导",
+        "sub_bomb": "炸",
+        "sub_mine": "雷",
+        "item_power": "火力升级  —  武器等级+1",
+        "item_option": "辅助机  —  增加一个浮游炮",
+        "controls_weapon": "Q/E  —  切换武器",
+        "controls_sub": "Shift/X  —  子武器",
+        "controls_charge": "长按空格  —  蓄力射击",
     },
 }
 

@@ -18,11 +18,48 @@ class Player(pygame.sprite.Sprite):
         self.invincible_timer = 0
         self.active_powerups = {}  # power_type -> remaining frames
 
+        # ── 武器系统字段 ──
+        self.weapon_levels = {w: INITIAL_WEAPON_LEVEL for w in WEAPON_TYPES}
+        self.active_weapon = "normal"      # 当前使用的武器类型
+        self.unlocked_weapons = ["normal"]  # 已解锁的武器列表
+        self.available_weapons = ["normal"]  # 当前可用的武器
+
+        # ── 蓄力系统 ──
+        self.charge_timer = 0
+        self.charge_tier = 0          # 0=未蓄力, 1/2/3=蓄力档位
+        self.is_charging = False
+        self.charge_released = False  # 标记本帧已释放蓄力
+        self.is_firing = False        # 标记本帧是否在射击（供Option使用）
+
+        # ── 连击系统 ──
+        self.combo_count = 0
+        self.combo_timer = 0
+        self.combo_buff_timer = 0
+        self.combo_tier = 0
+        self.combo_multiplier = 1.0
+
+        # ── 子武器系统 ──
+        self.sub_weapon_type = "missile"
+        self.sub_weapon_energy = SUB_WEAPON_MAX_ENERGY
+        self.sub_weapon_cooldown = 0
+        self.unlocked_sub_weapons = ["missile"]
+
+        # ── Option 辅助机 ──
+        self.options = []
+
+    # ── 帧更新 ──
+
     def update(self, keys_pressed, *args, **kwargs):
         self._handle_movement(keys_pressed)
         self._handle_shoot_cooldown()
         self._handle_invincibility()
         self._update_powerups()
+        self.update_sub_weapon()
+        self.update_combo()
+        # Clean up charge state if not actively charging
+        if not self.is_charging and self.charge_timer > 0:
+            self.charge_timer = 0
+            self.charge_tier = 0
 
     def _handle_movement(self, keys_pressed):
         speed = self.speed * 2 if self.has_powerup("speed") else self.speed
@@ -66,10 +103,235 @@ class Player(pygame.sprite.Sprite):
     def shoot(self):
         self.shoot_cooldown = PLAYER_SHOOT_COOLDOWN
 
+    # ── 武器等级系统 ──
+
+    def upgrade_weapon(self, weapon_type=None):
+        """Upgrade a weapon type by 1 level (max MAX_WEAPON_LEVEL)."""
+        wt = weapon_type or self.active_weapon
+        current = self.weapon_levels.get(wt, 1)
+        if current < MAX_WEAPON_LEVEL:
+            self.weapon_levels[wt] = current + 1
+            return True
+        return False
+
+    def downgrade_weapon(self, weapon_type=None):
+        """Downgrade a weapon type by 1 level (min 1) on death."""
+        wt = weapon_type or self.active_weapon
+        current = self.weapon_levels.get(wt, 1)
+        if current > 1:
+            self.weapon_levels[wt] = current - 1
+            return True
+        return False
+
+    def switch_weapon(self, direction=1):
+        """Switch active weapon type. direction: +1 = next, -1 = prev."""
+        if len(self.available_weapons) <= 1:
+            return
+        idx = self.available_weapons.index(self.active_weapon)
+        idx = (idx + direction) % len(self.available_weapons)
+        self.active_weapon = self.available_weapons[idx]
+
+    def unlock_weapon(self, weapon_type):
+        """Permanently unlock a weapon type."""
+        if weapon_type in WEAPON_TYPES and weapon_type not in self.unlocked_weapons:
+            self.unlocked_weapons.append(weapon_type)
+            self.available_weapons.append(weapon_type)
+            return True
+        return False
+
+    def get_weapon_level(self, weapon_type=None):
+        """Get the current level for the specified weapon."""
+        wt = weapon_type or self.active_weapon
+        return self.weapon_levels.get(wt, 1)
+
+    def get_weapon_config(self, weapon_type=None):
+        """Get the full config dict for the current (weapon, level)."""
+        wt = weapon_type or self.active_weapon
+        level = self.get_weapon_level(wt)
+        configs = WEAPON_LEVEL_CONFIGS.get(wt, WEAPON_LEVEL_CONFIGS["normal"])
+        return configs.get(level, configs[1])
+
+    # ── 蓄力系统 ──
+
+    def start_charge(self):
+        """Begin charging."""
+        self.is_charging = True
+        self.charge_released = False
+
+    def continue_charge(self):
+        """Continue charging (call each frame while holding fire)."""
+        if not self.is_charging:
+            return
+        self.charge_timer += 1
+        # Calculate current tier
+        new_tier = 0
+        for i, tier in enumerate(CHARGE_TIERS):
+            if self.charge_timer >= tier["hold_frames"]:
+                new_tier = i + 1
+        self.charge_tier = new_tier
+
+    def release_charge(self):
+        """Release the charge. Returns (was_charged, tier)."""
+        if not self.is_charging or self.charge_timer < CHARGE_TIERS[0]["hold_frames"]:
+            self.is_charging = False
+            self.charge_timer = 0
+            self.charge_tier = 0
+            return (False, 0)
+        tier = self.charge_tier
+        # Reset charge state
+        self.is_charging = False
+        self.charge_released = True
+        self.charge_timer = 0
+        self.charge_tier = 0
+        return (True, tier)
+
+    def cancel_charge(self):
+        """Cancel charge without firing."""
+        self.is_charging = False
+        self.charge_released = False
+        self.charge_timer = 0
+        self.charge_tier = 0
+
+    def get_charge_progress(self):
+        """Return charge progress as float 0.0-1.0 for HUD."""
+        if not self.is_charging or self.charge_timer == 0:
+            return 0.0
+        # Find the highest tier threshold reached
+        highest = 0
+        for i, tier in enumerate(CHARGE_TIERS):
+            if self.charge_timer >= tier["hold_frames"]:
+                highest = i + 1
+        if highest >= len(CHARGE_TIERS):
+            return 1.0
+        # Progress within current tier
+        prev_threshold = CHARGE_TIERS[highest - 1]["hold_frames"] if highest > 0 else 0
+        next_threshold = CHARGE_TIERS[highest]["hold_frames"]
+        progress = (self.charge_timer - prev_threshold) / (next_threshold - prev_threshold)
+        return (highest + progress) / len(CHARGE_TIERS)
+
+    def get_charge_tier_config(self, tier):
+        """Get charge tier config (1-indexed)."""
+        if 1 <= tier <= len(CHARGE_TIERS):
+            return CHARGE_TIERS[tier - 1]
+        return None
+
+    # ── 连击系统 ──
+
+    def register_kill(self):
+        """Register an enemy kill for combo tracking. Returns True if milestone reached."""
+        self.combo_count += 1
+        self.combo_timer = COMBO_RESET_FRAMES
+
+        # Check if combo threshold reached
+        if self.combo_count % COMBO_THRESHOLD == 0:
+            self.combo_tier = self.combo_count // COMBO_THRESHOLD
+            self.combo_multiplier = 1.0 + (self.combo_tier - 1) * 0.5  # 1x, 1.5x, 2x, ...
+            self.combo_buff_timer = COMBO_BUFF_FRAMES
+            return True  # combo milestone reached
+        return False
+
+    def update_combo(self):
+        """Update combo timer each frame."""
+        if self.combo_count > 0:
+            self.combo_timer -= 1
+            if self.combo_timer <= 0:
+                self.combo_count = 0
+                self.combo_tier = 0
+                self.combo_multiplier = 1.0
+        if self.combo_buff_timer > 0:
+            self.combo_buff_timer -= 1
+            if self.combo_buff_timer <= 0:
+                self.combo_tier = 0
+                self.combo_multiplier = 1.0
+
+    def reset_combo(self):
+        """Reset combo on player hit."""
+        self.combo_count = 0
+        self.combo_timer = 0
+        self.combo_buff_timer = 0
+        self.combo_tier = 0
+        self.combo_multiplier = 1.0
+
+    def has_combo_buff(self):
+        """Check if combo buff is active."""
+        return self.combo_buff_timer > 0
+
+    # ── 子武器系统 ──
+
+    def can_fire_sub_weapon(self):
+        """Check if sub-weapon can be fired."""
+        if self.sub_weapon_cooldown > 0:
+            return False
+        config = SUB_WEAPONS.get(self.sub_weapon_type, {})
+        cost = config.get("energy_cost", 15)
+        return self.sub_weapon_energy >= cost
+
+    def fire_sub_weapon(self):
+        """Consume energy and return config for creating the sub-weapon sprite."""
+        config = SUB_WEAPONS.get(self.sub_weapon_type, {})
+        cost = config.get("energy_cost", 15)
+        self.sub_weapon_energy -= cost
+        self.sub_weapon_cooldown = config.get("cooldown", 20)
+        return self.sub_weapon_type, config
+
+    def update_sub_weapon(self):
+        """Update sub-weapon cooldown and energy regen each frame."""
+        if self.sub_weapon_cooldown > 0:
+            self.sub_weapon_cooldown -= 1
+        if self.sub_weapon_energy < SUB_WEAPON_MAX_ENERGY:
+            self.sub_weapon_energy = min(
+                SUB_WEAPON_MAX_ENERGY,
+                self.sub_weapon_energy + SUB_WEAPON_REGEN_RATE,
+            )
+
+    def switch_sub_weapon(self):
+        """Cycle to next unlocked sub-weapon type."""
+        if len(self.unlocked_sub_weapons) <= 1:
+            return
+        idx = self.unlocked_sub_weapons.index(self.sub_weapon_type)
+        idx = (idx + 1) % len(self.unlocked_sub_weapons)
+        self.sub_weapon_type = self.unlocked_sub_weapons[idx]
+
+    def get_sub_weapon_energy_ratio(self):
+        """Return energy bar ratio 0.0-1.0 for HUD."""
+        return self.sub_weapon_energy / SUB_WEAPON_MAX_ENERGY
+
+    # ── Option 辅助机 ──
+
+    def add_option(self):
+        """Add one option satellite (if under max)."""
+        if len(self.options) < OPTION_MAX_COUNT:
+            # Import here to avoid circular dependency
+            from game.sprites.option import Option
+            opt = Option(self, len(self.options))
+            self.options.append(opt)
+            self.max_options = len(self.options)
+            return True
+        return False
+
+    def remove_options(self):
+        """Remove all options (on death)."""
+        self.options.clear()
+
+    def update_options(self):
+        """Update all option positions and shooting state."""
+        should_shoot = self.is_firing
+        for opt in self.options:
+            opt.update_position(self.rect.centerx, self.rect.centery, self.rect.bottom)
+            opt.update_shoot_state(should_shoot)
+
+    # ── 伤害/道具 ──
+
     def hit(self):
+        """Take a hit. Returns True if was actually hit."""
         if self.invincible_timer > 0:
             return False
         self.lives -= 1
+        # Reset combo on hit
+        self.reset_combo()
+        # Downgrade weapon on death (if still alive)
+        if self.lives > 0:
+            self.downgrade_weapon()
         if self.lives > 0:
             self.invincible_timer = PLAYER_INVINCIBLE_FRAMES
         return True  # was hit
@@ -79,12 +341,16 @@ class Player(pygame.sprite.Sprite):
         config = POWERUP_TYPES.get(power_type)
         if not config:
             return
-        duration = config["duration"]
+        duration = config.get("duration", 0)
         if power_type == "bomb":
             # bomb handled externally (clear enemies)
             pass
         elif power_type == "life":
             self.lives = min(self.lives + 1, PLAYER_MAX_LIVES)
+        elif power_type == "power":
+            self.upgrade_weapon()
+        elif power_type == "option":
+            self.add_option()
         else:
             self.active_powerups[power_type] = duration
 
@@ -93,6 +359,7 @@ class Player(pygame.sprite.Sprite):
         return power_type in self.active_powerups
 
     def reset(self):
+        """Reset player state for a new game (keeps weapon levels/options)."""
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.bottom = SCREEN_HEIGHT - 30
         self.lives = PLAYER_MAX_LIVES
@@ -100,3 +367,15 @@ class Player(pygame.sprite.Sprite):
         self.invincible_timer = PLAYER_INVINCIBLE_FRAMES  # respawn protection
         self.shoot_cooldown = 0
         self.active_powerups.clear()
+        self.charge_timer = 0
+        self.charge_tier = 0
+        self.is_charging = False
+        self.charge_released = False
+        self.is_firing = False
+        self.reset_combo()
+        # Keep weapon levels and unlocked weapons across games
+        # Keep options
+
+    def destroy(self):
+        """Full cleanup on game end."""
+        self.options.clear()

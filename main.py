@@ -12,12 +12,14 @@ from game.sprites.bullet import Bullet
 from game.sprites.explosion import Explosion
 from game.sprites.enemy_bullet import EnemyBullet
 from game.sprites.boss import Boss
+from game.sprites.sub_weapon_projectile import SubWeaponProjectile
 from game.systems.spawner import Spawner
 from game.systems.collision import (
     check_bullet_enemy_collisions,
     check_player_enemy_collisions,
     check_player_powerup_collisions,
     check_enemy_bullet_player_collisions,
+    check_sub_weapon_collisions,
 )
 from game.graphics.hud import (
     draw_hud,
@@ -73,11 +75,13 @@ class Game:
         self.powerups_group = pygame.sprite.Group()
         self.enemy_bullets_group = pygame.sprite.Group()
         self.boss_group = pygame.sprite.GroupSingle()
+        self.sub_weapons_group = pygame.sprite.Group()
 
         # Game systems
         self.player = Player()
         self.spawner = Spawner()
         self.sound_manager = SoundManager()
+        self._wpn_switch_cooldown = 0  # weapon switch cooldown
 
         # Background
         from game.graphics.background import LevelBackgroundManager
@@ -554,6 +558,7 @@ class Game:
         self.powerups_group.empty()
         self.enemy_bullets_group.empty()
         self.boss_group.empty()
+        self.sub_weapons_group.empty()
         self.player.reset()
         self.spawner.reset()
         self.spawner.on_level_up = self._on_level_up
@@ -583,9 +588,21 @@ class Game:
             self._handle_shooting()
             self.player.update(pygame.key.get_pressed())
             self.bullets_group.update()
+
+            # 为追踪弹设置敌人引用
+            for bullet in self.bullets_group:
+                if bullet.weapon_type == "homing":
+                    bullet.set_enemies_ref(self.enemies_group)
+
             self.enemies_group.update()
             self.explosions_group.update()
             self.powerups_group.update()
+
+            # 子武器更新
+            self.sub_weapons_group.update()
+
+            # Option 更新
+            self.player.update_options()
             self.spawner.update(self.enemies_group,
                                self.shared_score if is_coop else self.player.score)
 
@@ -633,7 +650,13 @@ class Game:
             score = check_bullet_enemy_collisions(
                 self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group,
                 killed_info_out=killed_info if is_coop else None,
+                player=self.player,  # 连击系统
             )
+            # 子武器碰撞
+            sub_score = check_sub_weapon_collisions(
+                self.sub_weapons_group, self.enemies_group, self.explosions_group,
+            )
+            score += sub_score
             if score > 0:
                 self.player.score += score
                 self.shared_score += score
@@ -653,6 +676,12 @@ class Game:
                         Explosion(enemy.rect.centerx, enemy.rect.centery, self.explosions_group)
                     self.enemies_group.empty()
                     self.sound_manager.play("explosion")
+                elif collected_type == "power":
+                    self.player.apply_powerup("power")
+                    self.sound_manager.play("level_up")
+                elif collected_type == "option":
+                    self.player.apply_powerup("option")
+                    self.sound_manager.play("level_up")
                 else:
                     self.player.apply_powerup(collected_type)
                     self.sound_manager.play("level_up")
@@ -693,8 +722,10 @@ class Game:
                 boss = self.boss_group.sprite
                 boss_hit_by = pygame.sprite.spritecollide(boss, self.bullets_group, False)
                 for bullet in boss_hit_by:
-                    destroyed = boss.take_damage()
-                    bullet.kill()
+                    bullet_damage = getattr(bullet, 'damage', 1)
+                    destroyed = boss.take_damage(bullet_damage)
+                    if not getattr(bullet, 'piercing', False):
+                        bullet.kill()
                     if destroyed:
                         self.player.score += boss.score_value
                         # Big explosion
@@ -817,31 +848,158 @@ class Game:
         )
 
     def _handle_shooting(self):
+        """Enhanced shooting logic: weapon levels, charge, options, sub-weapon."""
         keys = pygame.key.get_pressed()
-        if (keys[pygame.K_SPACE] or keys[pygame.K_z]) and self.player.can_shoot():
-            cooldown = PLAYER_SHOOT_COOLDOWN
-            if self.player.has_powerup("rapid"):
-                cooldown = max(3, PLAYER_SHOOT_COOLDOWN // 2)
+        space_held = keys[pygame.K_SPACE] or keys[pygame.K_z]
+        shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] or keys[pygame.K_x]
 
-            self.player.shoot()
-            self.player.shoot_cooldown = cooldown
+        # ── 武器切换 (Q/E) ──
+        if keys[pygame.K_q] and self._wpn_switch_cooldown <= 0:
+            self.player.switch_weapon(-1)
+            self._wpn_switch_cooldown = 15
+        elif keys[pygame.K_e] and self._wpn_switch_cooldown <= 0:
+            self.player.switch_weapon(1)
+            self._wpn_switch_cooldown = 15
+        elif self._wpn_switch_cooldown > 0:
+            self._wpn_switch_cooldown -= 1
 
-            bullet = Bullet(self.player.rect.centerx, self.player.rect.top)
+        # ── 子武器 (Shift) ──
+        if shift_held and self.player.can_fire_sub_weapon():
+            sub_type, sub_config = self.player.fire_sub_weapon()
+            self._fire_sub_weapon(sub_type, sub_config)
+
+        # ── 主武器射击 & 蓄力 ──
+        self.player.is_firing = False  # 默认不射击
+
+        if space_held:
+            if not self.player.is_charging:
+                self.player.start_charge()
+            self.player.continue_charge()
+
+            # 如果蓄力时间不足第一档，发射普通子弹
+            if self.player.charge_timer < CHARGE_TIERS[0]["hold_frames"]:
+                if self.player.can_shoot():
+                    self._fire_primary()
+        else:
+            # 空格释放 — 检查蓄力释放
+            if self.player.is_charging:
+                released, tier = self.player.release_charge()
+                if released:
+                    self._fire_charge(tier)
+            else:
+                # 不在蓄力中，也没按空格 — 正常状态
+                pass
+
+    def _fire_primary(self):
+        """Fire primary weapon based on current weapon type + level."""
+        if not self.player.can_shoot():
+            return
+
+        config = self.player.get_weapon_config()
+        wt = self.player.active_weapon
+
+        # Calculate cooldown
+        cooldown = int(PLAYER_SHOOT_COOLDOWN * config["cooldown_mult"])
+        if self.player.has_powerup("rapid"):
+            cooldown = max(3, cooldown // 2)
+        if self.player.has_combo_buff():
+            cooldown = max(2, int(cooldown * 0.7))
+
+        self.player.shoot()
+        self.player.shoot_cooldown = cooldown
+        self.player.is_firing = True
+
+        count = config["count"]
+        spread = config["spread_angle"]
+
+        # Create bullet(s)
+        for i in range(count):
+            if count == 1:
+                offset_x = 0
+            else:
+                angle_offset = -spread / 2 + (spread / (count - 1)) * i
+                offset_x = math.tan(math.radians(angle_offset)) * 15
+
+            bullet = Bullet(
+                self.player.rect.centerx + int(offset_x),
+                self.player.rect.top,
+                wt, self.player.get_weapon_level(),
+                vx=offset_x * 0.08 if offset_x != 0 else 0,
+            )
             self.bullets_group.add(bullet)
 
-            if self.player.has_powerup("triple"):
-                bullet_left = Bullet(self.player.rect.centerx - 12, self.player.rect.top)
-                bullet_right = Bullet(self.player.rect.centerx + 12, self.player.rect.top)
-                self.bullets_group.add(bullet_left, bullet_right)
+        # ● 连击奖励：额外发射一发大子弹
+        if self.player.has_combo_buff():
+            bonus = Bullet(
+                self.player.rect.centerx, self.player.rect.top,
+                wt, self.player.get_weapon_level(),
+                is_combo_bonus=True
+            )
+            self.bullets_group.add(bonus)
 
-            self.sound_manager.play("shoot")
+        # ● Option 辅助机同步射击
+        for opt in self.player.options:
+            ox, oy = opt.get_shoot_position()
+            obullet = Bullet(ox, oy, wt, self.player.get_weapon_level())
+            self.bullets_group.add(obullet)
 
-            # 合作模式：通知伙伴我在射击
-            if self.state.current == GameState.NETWORK_PLAYING and self.net_client:
-                is_triple = self.player.has_powerup("triple")
-                self.net_client.send_bullet_spawned(
-                    self.player.rect.centerx, self.player.rect.top, is_triple,
-                )
+        self.sound_manager.play("shoot")
+
+        # Network coop sync
+        if self.state.current == GameState.NETWORK_PLAYING and self.net_client:
+            is_triple = count >= 3
+            self.net_client.send_bullet_spawned(
+                self.player.rect.centerx, self.player.rect.top, is_triple,
+            )
+
+    def _fire_charge(self, tier):
+        """Fire a charged shot."""
+        if tier < 1 or tier > len(CHARGE_TIERS):
+            return
+
+        tier_config = CHARGE_TIERS[tier - 1]
+        wt = self.player.active_weapon
+        wpn_config = self.player.get_weapon_config()
+
+        damage = wpn_config["damage"] * tier_config["damage_mult"]
+        speed = BULLET_SPEED * tier_config["speed_mult"]
+
+        bullet = Bullet(
+            self.player.rect.centerx,
+            self.player.rect.top,
+            wt, self.player.get_weapon_level(),
+            is_charged=True,
+            charge_tier=tier,
+            custom_damage=damage,
+            custom_speed=speed,
+            piercing=tier_config.get("piercing", False),
+        )
+        self.bullets_group.add(bullet)
+
+        # 蓄力射击也触发 Option
+        for opt in self.player.options:
+            ox, oy = opt.get_shoot_position()
+            obullet = Bullet(
+                ox, oy, wt, self.player.get_weapon_level(),
+                is_charged=True,
+                charge_tier=tier,
+                custom_damage=damage * 0.5,
+                custom_speed=speed,
+            )
+            self.bullets_group.add(obullet)
+
+        self.sound_manager.play("shoot")
+
+    def _fire_sub_weapon(self, sub_type, config):
+        """Fire sub-weapon projectile."""
+        proj = SubWeaponProjectile(
+            self.player.rect.centerx,
+            self.player.rect.top,
+            sub_type, config,
+            enemies_group=self.enemies_group,
+        )
+        self.sub_weapons_group.add(proj)
+        self.sound_manager.play("shoot")
 
     # ── 绘制 ────────────────────────────────────────────────────────────
 
@@ -921,6 +1079,7 @@ class Game:
             self.background.draw(self.virtual_surf)
             self.enemies_group.draw(self.virtual_surf)
             self.bullets_group.draw(self.virtual_surf)
+            self.sub_weapons_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
@@ -965,11 +1124,15 @@ class Game:
             self.background.draw(self.virtual_surf)
             self.enemies_group.draw(self.virtual_surf)
             self.bullets_group.draw(self.virtual_surf)
+            self.sub_weapons_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
             self.player_group.add(self.player)
             self.player_group.draw(self.virtual_surf)
+            # Option 辅助机渲染
+            for opt in self.player.options:
+                self.virtual_surf.blit(opt.image, opt.rect)
             for explosion in self.explosions_group:
                 explosion.draw(self.virtual_surf)
             draw_hud(
@@ -978,6 +1141,7 @@ class Game:
                 self.player.lives,
                 self.spawner.current_level,
                 self.player.active_powerups,
+                player=self.player,
             )
 
         # Scale virtual surface to display window — apply screen shake offset

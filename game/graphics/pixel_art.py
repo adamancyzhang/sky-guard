@@ -191,6 +191,26 @@ POWERUP_MATRICES = {
         "00011000",
         "00000000",
     ],
+    "power": [
+        "01111110",
+        "11111111",
+        "11000011",
+        "11111111",
+        "11111111",
+        "11000011",
+        "11111111",
+        "01111110",
+    ],
+    "option": [
+        "00111100",
+        "01111110",
+        "11111111",
+        "11111111",
+        "11111111",
+        "11111111",
+        "01111110",
+        "00111100",
+    ],
 }
 
 
@@ -198,3 +218,164 @@ def create_powerup_surface(power_type, color, scale=3):
     """Create a Surface for a power-up icon."""
     matrix = POWERUP_MATRICES.get(power_type, POWERUP_MATRICES["shield"])
     return matrix_to_surface(matrix, color, scale)
+
+
+# ══════════════════════════════════════════════════════════════════════
+# 武器系统子弹像素
+# ══════════════════════════════════════════════════════════════════════
+
+# 不同武器类型的子弹 Matrix
+BULLET_MATRICES = {
+    "normal": [
+        "00100",
+        "01110",
+        "11111",
+        "01110",
+    ],
+    "spread": [
+        "00100",
+        "01110",
+        "11111",
+        "01110",
+        "00100",
+    ],
+    "laser": [
+        "00100",
+        "00100",
+        "11111",
+        "11111",
+        "11111",
+        "11111",
+        "00100",
+        "00100",
+    ],
+    "homing": [
+        "01010",
+        "10101",
+        "11111",
+        "01110",
+        "01110",
+        "11111",
+        "10101",
+        "01010",
+    ],
+}
+
+# 蓄力子弹矩阵（放大版）
+CHARGE_BULLET_MATRICES = {
+    1: [
+        "01110",
+        "11111",
+        "11111",
+        "11111",
+        "01110",
+    ],
+    2: [
+        "0011100",
+        "0111110",
+        "1111111",
+        "1111111",
+        "1111111",
+        "0111110",
+        "0011100",
+    ],
+    3: [
+        "0001111000",
+        "0011111100",
+        "0111111110",
+        "1111111111",
+        "1111111111",
+        "1111111111",
+        "0111111110",
+        "0011111100",
+        "0001111000",
+    ],
+}
+
+# 子武器矩阵（8x8）
+SUB_WEAPON_MATRICES = {
+    "missile": [
+        "00011000",
+        "00111100",
+        "01111110",
+        "11111111",
+        "11111111",
+        "01111110",
+        "00011000",
+        "00000000",
+    ],
+    "bomb": [
+        "00000000",
+        "00011000",
+        "00111100",
+        "01111110",
+        "11111111",
+        "01111110",
+        "00111100",
+        "00011000",
+    ],
+    "mine": [
+        "00111100",
+        "01000010",
+        "10011001",
+        "11111111",
+        "11111111",
+        "10011001",
+        "01000010",
+        "00111100",
+    ],
+}
+
+# Option 辅助机矩阵（6x6）
+OPTION_MATRIX = [
+    "011110",
+    "111111",
+    "111111",
+    "111111",
+    "011110",
+    "001100",
+]
+
+# 武器颜色映射 — imported from game.settings
+# WEAPON_COLORS = { ... }
+
+
+def create_weapon_bullet(weapon_type, level, is_charged=False, charge_tier=0, scale=2):
+    """Create a bullet surface based on weapon type and level."""
+    matrix = BULLET_MATRICES.get(weapon_type, BULLET_MATRICES["normal"])
+    color = WEAPON_COLORS.get(weapon_type, YELLOW)
+
+    if is_charged and charge_tier > 0:
+        charge_matrix = CHARGE_BULLET_MATRICES.get(charge_tier)
+        if charge_matrix:
+            matrix = charge_matrix
+        # Charged bullets get brighter color
+        r = min(255, color[0] + 80)
+        g = min(255, color[1] + 80)
+        b = min(255, color[2] + 80)
+        color = (r, g, b)
+        charge_scale = charge_tier + 1
+        surf = matrix_to_surface(matrix, color, scale * charge_scale)
+    else:
+        # Larger bullet at higher levels
+        s = scale + (level // 2)
+        surf = matrix_to_surface(matrix, color, s)
+
+    return surf
+
+
+def create_sub_weapon_surface(sub_type, scale=2):
+    """Create a surface for a sub-weapon projectile."""
+    matrix = SUB_WEAPON_MATRICES.get(sub_type, SUB_WEAPON_MATRICES["missile"])
+    configs = {
+        "missile": (255, 200, 50),
+        "bomb": (255, 100, 50),
+        "mine": (100, 255, 100),
+    }
+    color = configs.get(sub_type, (255, 200, 50))
+    return matrix_to_surface(matrix, color, scale)
+
+
+def create_option_surface(scale=2):
+    """Create a surface for an option satellite."""
+    return matrix_to_surface(OPTION_MATRIX, CYAN, scale)
