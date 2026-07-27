@@ -369,3 +369,53 @@ WEAPON_COLORS = {
     "laser": CYAN,
     "homing": GREEN,
 }
+
+# ══════════════════════════════════════════════════════════════════════
+# 道具系统配置 (Item System)
+# ══════════════════════════════════════════════════════════════════════
+
+# 道具掉落率（与常规 PowerUp 掉落独立计算）
+ITEM_DROP_CHANCE = 0.06        # 6% chance per enemy kill
+ITEM_FALL_SPEED = 2            # fall speed (same as powerups)
+
+# 道具最大携带数
+ITEM_MAX_INVENTORY = 3
+
+# 每个道具的配置
+ITEM_TYPES = {
+    "full_bomb": {
+        "color": (255, 50, 50),         # bright red
+        "description_key": "item_full_bomb",
+        "icon": "full_bomb",
+    },
+    "time_slow": {
+        "color": (50, 200, 255),        # light blue
+        "duration": 5 * FPS,            # 5 seconds
+        "description_key": "item_time_slow",
+        "icon": "time_slow",
+    },
+    "reflect_shield": {
+        "color": (255, 200, 50),        # gold
+        "duration": 3 * FPS,            # 3 seconds
+        "description_key": "item_reflect_shield",
+        "icon": "reflect_shield",
+    },
+    "repair": {
+        "color": (100, 255, 100),       # green
+        "duration": 0,                  # instant
+        "description_key": "item_repair",
+        "icon": "repair",
+    },
+    "score_boost": {
+        "color": (255, 255, 0),         # bright yellow
+        "duration": 10 * FPS,           # 10 seconds
+        "description_key": "item_score_boost",
+        "icon": "score_boost",
+    },
+    "gravity_bomb": {
+        "color": (200, 50, 255),        # purple
+        "duration": 0,                  # instant effect
+        "description_key": "item_gravity_bomb",
+        "icon": "gravity_bomb",
+    },
+}

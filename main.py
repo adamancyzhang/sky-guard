@@ -20,6 +20,8 @@ from game.systems.collision import (
     check_player_powerup_collisions,
     check_enemy_bullet_player_collisions,
     check_sub_weapon_collisions,
+    check_player_item_collisions,
+    apply_gravity_bomb,
 )
 from game.graphics.hud import (
     draw_hud,
@@ -76,6 +78,7 @@ class Game:
         self.enemy_bullets_group = pygame.sprite.Group()
         self.boss_group = pygame.sprite.GroupSingle()
         self.sub_weapons_group = pygame.sprite.Group()
+        self.items_group = pygame.sprite.Group()
 
         # Game systems
         self.player = Player()
@@ -559,6 +562,7 @@ class Game:
         self.enemy_bullets_group.empty()
         self.boss_group.empty()
         self.sub_weapons_group.empty()
+        self.items_group.empty()
         self.player.reset()
         self.spawner.reset()
         self.spawner.on_level_up = self._on_level_up
@@ -594,12 +598,24 @@ class Game:
                 if bullet.weapon_type == "homing":
                     bullet.set_enemies_ref(self.enemies_group)
 
+            # 时间减速效果: 减慢敌人和敌弹速度
+            time_slow_active = self.player.has_time_slow()
+            if time_slow_active:
+                for enemy in self.enemies_group:
+                    enemy.speed_multiplier = 0.5
+            else:
+                for enemy in self.enemies_group:
+                    enemy.speed_multiplier = 1.0
+
             self.enemies_group.update()
             self.explosions_group.update()
             self.powerups_group.update()
 
             # 子武器更新
             self.sub_weapons_group.update()
+
+            # 道具更新
+            self.items_group.update()
 
             # Option 更新
             self.player.update_options()
@@ -614,6 +630,12 @@ class Game:
                         self.player.rect.centerx, self.player.rect.centery,
                     )
                     self.enemy_bullets_group.add(bullet)
+
+            # Apply time slow to enemy bullets
+            bullet_slow = 0.5 if self.player.has_time_slow() else 1.0
+            for ebullet in self.enemy_bullets_group:
+                ebullet.speed_multiplier = bullet_slow
+
             self.enemy_bullets_group.update()
 
             # Boss spawn check
@@ -649,8 +671,9 @@ class Game:
             killed_info = []
             score = check_bullet_enemy_collisions(
                 self.bullets_group, self.enemies_group, self.explosions_group, self.powerups_group,
+                items_group=self.items_group,
                 killed_info_out=killed_info if is_coop else None,
-                player=self.player,  # 连击系统
+                player=self.player,  # 连击系统 + 道具分数倍率
             )
             # 子武器碰撞
             sub_score = check_sub_weapon_collisions(
@@ -685,6 +708,11 @@ class Game:
                 else:
                     self.player.apply_powerup(collected_type)
                     self.sound_manager.play("level_up")
+
+            # ── 道具拾取碰撞 ──
+            collected_item = check_player_item_collisions(self.player, self.items_group)
+            if collected_item:
+                self.sound_manager.play("level_up")
 
             hit = check_player_enemy_collisions(
                 self.player, self.enemies_group, self.explosions_group
@@ -848,11 +876,20 @@ class Game:
         )
 
     def _handle_shooting(self):
-        """Enhanced shooting logic: continuous fire (Space), charge (Shift), options, sub-weapon (X)."""
+        """Enhanced shooting logic: continuous fire (Space), charge (Shift), sub-weapon (X), items (Ctrl)."""
         keys = pygame.key.get_pressed()
         space_held = keys[pygame.K_SPACE] or keys[pygame.K_z]
         shift_held = keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT]
         x_held = keys[pygame.K_x]
+        ctrl_held = keys[pygame.K_LCTRL] or keys[pygame.K_RCTRL]
+
+        # ── 使用道具 (Ctrl) ──
+        if ctrl_held and self.player.has_item() and self.player.inventory_cooldown == 0:
+            result = self.player.use_item()
+            if result is not None:
+                item_type, _ = result
+                effect = self.player.activate_item_effect(item_type)
+                self._apply_item_effect(effect)
 
         # ── 武器切换 (Q/E) ──
         if keys[pygame.K_q] and self._wpn_switch_cooldown <= 0:
@@ -998,6 +1035,37 @@ class Game:
         self.sub_weapons_group.add(proj)
         self.sound_manager.play("shoot")
 
+    # ── 道具系统效果处理 ────────────────────────────────────────────────
+
+    def _apply_item_effect(self, effect):
+        """Apply the effect of a consumed item."""
+        etype = effect.get("type")
+
+        if effect.get("clear_enemies"):
+            # Full screen bomb: clear all enemies and enemy bullets
+            for enemy in self.enemies_group:
+                Explosion(enemy.rect.centerx, enemy.rect.centery, self.explosions_group)
+            self.enemies_group.empty()
+            self.enemy_bullets_group.empty()
+            self.sound_manager.play("explosion")
+
+        if effect.get("clear_bullets"):
+            self.enemy_bullets_group.empty()
+
+        if effect.get("pull_enemies"):
+            # Gravity bomb: pull + damage
+            damage_score = apply_gravity_bomb(
+                self.enemies_group, self.explosions_group,
+            )
+            self.player.score += damage_score
+            self.shared_score += damage_score
+            self.sound_manager.play("explosion")
+
+        if effect.get("healed"):
+            self.sound_manager.play("level_up")
+
+        # time_slow, reflect_shield, score_boost — handled by player._update_item_timers
+
     # ── 绘制 ────────────────────────────────────────────────────────────
 
     def draw(self):
@@ -1078,6 +1146,7 @@ class Game:
             self.bullets_group.draw(self.virtual_surf)
             self.sub_weapons_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
+            self.items_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
 
@@ -1123,6 +1192,7 @@ class Game:
             self.bullets_group.draw(self.virtual_surf)
             self.sub_weapons_group.draw(self.virtual_surf)
             self.powerups_group.draw(self.virtual_surf)
+            self.items_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
             self.player_group.add(self.player)

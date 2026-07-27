@@ -30,10 +30,12 @@ class Enemy(pygame.sprite.Sprite):
         # Shooting ability
         self.can_shoot = enemy_type in ("fast", "tank")
         self.shoot_timer = random.randint(0, ENEMY_SHOOT_INTERVAL)
+        # 道具系统：速度倍率（用于时间减速等效果）
+        self.speed_multiplier = 1.0
 
     def update(self, *args, **kwargs):
         self._frame += 1
-        self.rect.y += self.speed
+        self.rect.y += self.speed * self.speed_multiplier
         # 正弦横向摆动 — 不偏向右
         self.rect.x += math.sin(self._frame * self.wobble_freq + self.wobble_phase) * self.wobble_amp
         # Boundary clamp

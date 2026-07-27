@@ -251,7 +251,7 @@ def draw_help_screen(screen):
     screen.blit(ctrl_title, (_MARGIN, y))
     y += 28
 
-    for key in ["controls_move", "controls_shoot", "controls_weapon", "controls_charge", "controls_sub", "controls_pause"]:
+    for key in ["controls_move", "controls_shoot", "controls_weapon", "controls_charge", "controls_sub", "controls_item", "controls_pause"]:
         line = body_font.render(_(key), True, WHITE)
         screen.blit(line, (_MARGIN + 8, y))
         y += 22
@@ -259,11 +259,23 @@ def draw_help_screen(screen):
     y += 6
 
     # Items section
-    items_title = sub_font.render(_("items_title"), True, YELLOW)
+    items_title = sub_font.render(_("powerups_title"), True, YELLOW)
     screen.blit(items_title, (_MARGIN, y))
     y += 28
 
     for key in ["item_shield", "item_rapid", "item_triple", "item_bomb", "item_speed", "item_life", "item_power", "item_option"]:
+        line = body_font.render(_(key), True, WHITE)
+        screen.blit(line, (_MARGIN + 8, y))
+        y += 22
+
+    y += 6
+
+    # Consumable Items section
+    items_title = sub_font.render(_("items_title"), True, YELLOW)
+    screen.blit(items_title, (_MARGIN, y))
+    y += 28
+
+    for key in ["item_full_bomb", "item_time_slow", "item_reflect_shield", "item_repair", "item_score_boost", "item_gravity_bomb"]:
         line = body_font.render(_(key), True, WHITE)
         screen.blit(line, (_MARGIN + 8, y))
         y += 22
@@ -372,6 +384,79 @@ def draw_weapon_hud(screen, player):
     e_color = GREEN if energy_ratio > 0.5 else (YELLOW if energy_ratio > 0.25 else RED)
     pygame.draw.rect(screen, e_color, (energy_bar_x, energy_bar_y, e_fill, energy_bar_h), border_radius=2)
     pygame.draw.rect(screen, WHITE, (energy_bar_x, energy_bar_y, energy_bar_w, energy_bar_h), 1, border_radius=2)
+
+    # ── 道具系统 HUD（底部中央） ──
+    draw_item_hud(screen, player)
+
+
+def draw_item_hud(screen, player):
+    """Draw the item inventory and active item effects at the bottom center."""
+    font_tiny = _get_font(13)
+    font_small = _get_font(15)
+
+    inv = player.inventory
+    cx = SCREEN_WIDTH // 2
+
+    # ── Active item effect indicators ──
+    effect_y = SCREEN_HEIGHT - 10
+    effects = []
+    if player.time_slow_timer > 0:
+        secs = player.time_slow_timer // 60 + 1
+        effects.append(("SLOW", (50, 200, 255), secs))
+    if player.reflect_shield_timer > 0:
+        secs = player.reflect_shield_timer // 60 + 1
+        effects.append(("SHIELD", (255, 200, 50), secs))
+    if player.score_boost_timer > 0:
+        secs = player.score_boost_timer // 60 + 1
+        effects.append(("SCORE", (255, 255, 0), secs))
+    if player.invincible_bonus_timer > 0:
+        secs = player.invincible_bonus_timer // 60 + 1
+        effects.append(("INV", (100, 255, 100), secs))
+
+    if effects:
+        # Draw from right side inward
+        ex = SCREEN_WIDTH - _MARGIN
+        for label, color, secs in reversed(effects):
+            text = f"{label}:{secs}s"
+            surf = font_tiny.render(text, True, color)
+            er = surf.get_rect(bottomright=(ex, effect_y))
+            screen.blit(surf, er)
+            ex -= surf.get_width() + 6
+
+    # ── Item inventory bar (bottom center) ──
+    if not inv:
+        return
+
+    slot_size = 24
+    slot_gap = 4
+    total_w = len(inv) * (slot_size + slot_gap) - slot_gap
+    start_x = cx - total_w // 2
+    slot_y = SCREEN_HEIGHT - 48
+
+    for i, item_type in enumerate(inv):
+        sx = start_x + i * (slot_size + slot_gap)
+        config = ITEM_TYPES.get(item_type, {})
+
+        # Slot background
+        slot_rect = pygame.Rect(sx, slot_y, slot_size, slot_size)
+        is_active = (i == 0)  # first item is the "active" one (used on Ctrl press)
+        bg_color = (60, 60, 80) if is_active else (40, 40, 55)
+        border_color = (255, 255, 100) if is_active else (100, 100, 120)
+        pygame.draw.rect(screen, bg_color, slot_rect, border_radius=3)
+        pygame.draw.rect(screen, border_color, slot_rect, 1, border_radius=3)
+
+        # Item icon (small)
+        from game.graphics.pixel_art import create_item_surface
+        item_color = config.get("color", WHITE)
+        icon = create_item_surface(item_type, item_color, scale=1)
+        icon_rect = icon.get_rect(center=slot_rect.center)
+        screen.blit(icon, icon_rect)
+
+    # Hint text ("CTRL to use") if inventory not empty
+    if inv and player.inventory_cooldown == 0:
+        hint = font_small.render("[CTRL]", True, (200, 200, 100))
+        hint_rect = hint.get_rect(center=(cx, SCREEN_HEIGHT - 62))
+        screen.blit(hint, hint_rect)
 
 
 # ══════════════════════════════════════════════════════════════════════

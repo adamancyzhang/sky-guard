@@ -47,6 +47,16 @@ class Player(pygame.sprite.Sprite):
         # ── Option 辅助机 ──
         self.options = []
 
+        # ── 道具系统 (Item System) ──
+        self.inventory = []               # 持有的道具列表，最多 ITEM_MAX_INVENTORY
+        self.inventory_cooldown = 0       # 使用道具后的冷却帧
+
+        # ── 道具特效状态 ──
+        self.time_slow_timer = 0          # 时间减速剩余帧
+        self.reflect_shield_timer = 0     # 反射护盾剩余帧
+        self.score_boost_timer = 0        # 分数增益剩余帧
+        self.invincible_bonus_timer = 0   # 无敌增益剩余帧（用于 repair 等）
+
     # ── 帧更新 ──
 
     def update(self, keys_pressed, *args, **kwargs):
@@ -56,6 +66,7 @@ class Player(pygame.sprite.Sprite):
         self._update_powerups()
         self.update_sub_weapon()
         self.update_combo()
+        self._update_item_timers()
         # Clean up charge state if not actively charging
         if not self.is_charging and self.charge_timer > 0:
             self.charge_timer = 0
@@ -320,10 +331,94 @@ class Player(pygame.sprite.Sprite):
             opt.update_position(self.rect.centerx, self.rect.centery, self.rect.bottom)
             opt.update_shoot_state(should_shoot)
 
+    # ── 道具系统 (Item System) ──
+
+    def _update_item_timers(self):
+        """Update all item effect timers each frame."""
+        if self.inventory_cooldown > 0:
+            self.inventory_cooldown -= 1
+        if self.time_slow_timer > 0:
+            self.time_slow_timer -= 1
+        if self.reflect_shield_timer > 0:
+            self.reflect_shield_timer -= 1
+        if self.score_boost_timer > 0:
+            self.score_boost_timer -= 1
+        if self.invincible_bonus_timer > 0:
+            self.invincible_bonus_timer -= 1
+
+    def can_collect_item(self):
+        """Check if the player can pick up another item."""
+        return len(self.inventory) < ITEM_MAX_INVENTORY
+
+    def collect_item(self, item_type):
+        """Add an item to the inventory. Returns True if collected."""
+        if len(self.inventory) >= ITEM_MAX_INVENTORY:
+            return False
+        self.inventory.append(item_type)
+        return True
+
+    def has_item(self):
+        """Check if player has any item in inventory."""
+        return len(self.inventory) > 0
+
+    def use_item(self):
+        """Use the first (leftmost) item in inventory. Returns (item_type, config) or None."""
+        if not self.inventory or self.inventory_cooldown > 0:
+            return None
+        item_type = self.inventory.pop(0)
+        self.inventory_cooldown = 10  # 10 frames cooldown between uses
+        config = ITEM_TYPES.get(item_type, {})
+        return (item_type, config)
+
+    def activate_item_effect(self, item_type):
+        """Apply the effect of a consumed item. Returns a dict with effect details for main.py."""
+        effect = {"type": item_type}
+        if item_type == "full_bomb":
+            effect["clear_enemies"] = True
+            effect["clear_bullets"] = True
+        elif item_type == "time_slow":
+            self.time_slow_timer = ITEM_TYPES["time_slow"]["duration"]
+        elif item_type == "reflect_shield":
+            self.reflect_shield_timer = ITEM_TYPES["reflect_shield"]["duration"]
+        elif item_type == "repair":
+            if self.lives < PLAYER_MAX_LIVES:
+                self.lives += 1
+                effect["healed"] = True
+            else:
+                effect["healed"] = False
+        elif item_type == "score_boost":
+            self.score_boost_timer = ITEM_TYPES["score_boost"]["duration"]
+        elif item_type == "gravity_bomb":
+            effect["pull_enemies"] = True
+            effect["gravity_damage"] = True
+        return effect
+
+    def has_reflect_shield(self):
+        """Check if reflect shield is active."""
+        return self.reflect_shield_timer > 0
+
+    def has_time_slow(self):
+        """Check if time slow is active."""
+        return self.time_slow_timer > 0
+
+    def has_score_boost(self):
+        """Check if score boost is active."""
+        return self.score_boost_timer > 0
+
+    def get_score_multiplier(self):
+        """Get current score multiplier (item system + combo)."""
+        mult = self.combo_multiplier
+        if self.has_score_boost():
+            mult *= 2.0
+        return mult
+
     # ── 伤害/道具 ──
 
     def hit(self):
         """Take a hit. Returns True if was actually hit."""
+        # Reflect shield: does not consume the barrier, just reflects
+        if self.has_reflect_shield():
+            return False
         if self.invincible_timer > 0:
             return False
         self.lives -= 1
@@ -373,6 +468,13 @@ class Player(pygame.sprite.Sprite):
         self.charge_released = False
         self.is_firing = False
         self.reset_combo()
+        # Reset item system
+        self.inventory.clear()
+        self.inventory_cooldown = 0
+        self.time_slow_timer = 0
+        self.reflect_shield_timer = 0
+        self.score_boost_timer = 0
+        self.invincible_bonus_timer = 0
         # Keep weapon levels and unlocked weapons across games
         # Keep options
 

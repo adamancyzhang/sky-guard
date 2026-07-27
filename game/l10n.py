@@ -27,7 +27,8 @@ _STRINGS = {
         "controls_charge": "Shift  -  Charge shot (hold)",
         "controls_sub": "X  -  Sub-weapon",
         "controls_pause": "ESC  -  Quit game / Back",
-        "items_title": "=== POWER-UPS ===",
+        "items_title": "=== ITEMS ===",
+        "powerups_title": "=== POWER-UPS ===",
         "item_shield": "Shield  -  Invincible for 5s (blue aura)",
         "item_rapid": "Rapid Fire  -  Double fire rate for 8s",
         "item_triple": "Triple Shot  -  3-way spread for 8s",
@@ -80,6 +81,15 @@ _STRINGS = {
         "sub_mine": "MIN",
         "item_power": "Power Up  -  +1 weapon level",
         "item_option": "Option  -  +1 floating satellite",
+
+        # ── Item System (en) ──
+        "controls_item": "Ctrl  -  Use stored item",
+        "item_full_bomb": "Full Screen Bomb  -  Clear all enemies & bullets",
+        "item_time_slow": "Time Slow  -  Slow enemies by 50% for 5s",
+        "item_reflect_shield": "Reflect Shield  -  Reflect enemy bullets for 3s",
+        "item_repair": "Repair  -  Restore 1 life",
+        "item_score_boost": "Score Boost  -  2x score for 10s",
+        "item_gravity_bomb": "Gravity Bomb  -  Pull + damage all enemies",
     },
     "zh": {
         "title": "天穹守卫",
@@ -106,7 +116,8 @@ _STRINGS = {
         "controls_charge": "Shift  —  蓄力射击",
         "controls_sub": "X  —  子武器",
         "controls_pause": "ESC  —  退出 / 返回",
-        "items_title": "=== 道具说明 ===",
+        "items_title": "=== 道具系统 ===",
+        "powerups_title": "=== 道具说明 ===",
         "item_shield": "护盾  —  5秒无敌（蓝色光环）",
         "item_rapid": "速射  —  8秒双倍射速",
         "item_triple": "三连射  —  8秒三向散射",
@@ -159,6 +170,15 @@ _STRINGS = {
         "sub_mine": "雷",
         "item_power": "火力升级  —  武器等级+1",
         "item_option": "辅助机  —  增加一个浮游炮",
+
+        # ── 道具系统 (zh) ──
+        "controls_item": "Ctrl  —  使用道具",
+        "item_full_bomb": "全屏炸弹  —  消灭全部敌人及子弹",
+        "item_time_slow": "时间减速  —  5秒内敌人减速50%",
+        "item_reflect_shield": "反射护盾  —  3秒内反弹敌弹",
+        "item_repair": "修复  —  恢复1条生命",
+        "item_score_boost": "分数增益  —  10秒内得分×2",
+        "item_gravity_bomb": "重力炸弹  —  吸引+伤害全部敌人",
     },
 }
 
