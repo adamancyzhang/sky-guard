@@ -1,6 +1,8 @@
 # game/graphics/hud.py
 import pygame
 import os
+import math
+import time
 from game.settings import *
 
 # Path to bundled fonts
@@ -87,7 +89,8 @@ def _render_text(text, size, color, bold=False):
 
 # ── HUD (in-game) ──────────────────────────────────────────────────
 
-def draw_hud(screen, score, lives, level, active_powerups=None, player=None):
+def draw_hud(screen, score, lives, level, active_powerups=None, player=None,
+             muted=False, particles=None):
     from game.l10n import L10n
     _ = L10n._
 
@@ -117,18 +120,25 @@ def draw_hud(screen, score, lives, level, active_powerups=None, player=None):
     if player is not None:
         draw_weapon_hud(screen, player)
 
+    # ── Mute icon ──
+    if muted:
+        icon_font = _get_font(20)
+        mute_surf = icon_font.render("🔇", True, LIGHT_GRAY)
+        screen.blit(mute_surf, (SCREEN_WIDTH - 30, _MARGIN))
+
 
 # ── Main Menu ──────────────────────────────────────────────────────
 
-def draw_menu_screen(screen, selected):
+def draw_menu_screen(screen, selected, particles=None, frame_count=0):
     """Draw the main menu with localized strings, 3 options + language toggle."""
     from game.l10n import L10n
     _ = L10n._
 
     screen.fill(BLACK)
 
-    # Title
-    title_font = _get_font(64, bold=True)
+    # Title with breathing effect
+    title_scale = 1.0 + TITLE_BREATH_AMPLITUDE * math.sin(frame_count * TITLE_BREATH_SPEED * 2 * math.pi)
+    title_font = _get_font(int(64 * title_scale), bold=True)
     title = title_font.render(_("title"), True, CYAN)
     title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 4))
     screen.blit(title, title_rect)
@@ -1061,3 +1071,39 @@ def draw_coop_game_over_screen(screen, final_score, your_name, partner_name):
     hint = hint_font.render(_("network_game_over_hint"), True, DARK_GRAY)
     hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 50))
     screen.blit(hint, hint_rect)
+
+
+# ── Score Popups ────────────────────────────────────────────────────
+
+def draw_score_popups(screen, particles):
+    """Render floating score text from particle markers (size==0, _score_text)."""
+    popup_font = _get_font(18, bold=True)
+    for p in particles.pool:
+        if p.dead or p.size != 0 or not hasattr(p, '_score_text'):
+            continue
+        if p._score_text is None:
+            continue
+        alpha = max(0, min(255, p.alpha))
+        color = (p.color[0], p.color[1], p.color[2])
+        text = p._score_text
+        surf = popup_font.render(text, True, color)
+        surf.set_alpha(alpha)
+        rect = surf.get_rect(center=(int(p.x), int(p.y)))
+        screen.blit(surf, rect)
+
+
+# ── Combo Popup ─────────────────────────────────────────────────────
+
+def draw_combo_popup(screen, combo_tier, frame_counter):
+    """Draw a pulsing 'x2 Combo!' in screen center when combo triggers."""
+    if combo_tier <= 0:
+        return
+    text = f"x{combo_tier + 1} COMBO!"
+    scale = 1.0 + 0.3 * math.sin(frame_counter * 0.15)
+    size = int(36 * scale)
+    font = _get_font(size, bold=True)
+    surf = font.render(text, True, (255, 220, 50))
+    rect = surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 40))
+    alpha = max(0, 255 - frame_counter * 6)
+    surf.set_alpha(alpha)
+    screen.blit(surf, rect)
