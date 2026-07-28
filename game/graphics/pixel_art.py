@@ -120,6 +120,30 @@ def create_boss_surface(scale=3):
     return surf
 
 
+def create_boss_surface_variant(scale=3, tint_color=None, pulse=0):
+    """Create Boss surface with color tint and pulse animation."""
+    from game.settings import BOSS_MATRIX, SCREEN_HEIGHT
+    actual_scale = scale + pulse
+    surf = pygame.Surface((16 * actual_scale, 16 * actual_scale), pygame.SRCALPHA)
+    base_color = tint_color or (200, 50, 200)
+    for y, row in enumerate(BOSS_MATRIX):
+        for x, ch in enumerate(row):
+            if ch == "1":
+                color = base_color
+                if y < 4 and x > 3 and x < 12:
+                    # Highlight: brighten
+                    r = min(255, color[0] + 60)
+                    g = min(255, color[1] + 60)
+                    b = min(255, color[2] + 60)
+                    color = (r, g, b)
+                pygame.draw.rect(surf, color, (x * actual_scale, y * actual_scale, actual_scale, actual_scale))
+    # Eye glow
+    eye_color = (255, 50, 50)
+    for ex, ey in [(5 * actual_scale, 6 * actual_scale), (10 * actual_scale, 6 * actual_scale)]:
+        pygame.draw.circle(surf, eye_color, (ex + actual_scale // 2, ey + actual_scale // 2), actual_scale)
+    return surf
+
+
 def create_bullet_surface():
     """Create the bullet Surface."""
     surf = pygame.Surface((BULLET_WIDTH, BULLET_HEIGHT), pygame.SRCALPHA)

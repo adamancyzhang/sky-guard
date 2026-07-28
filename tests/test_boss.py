@@ -58,7 +58,7 @@ def test_boss_get_bullet_vectors():
     from game.settings import BOSS_BULLET_CONFIGS
     boss = Boss()
     boss.rect.center = (SCREEN_WIDTH // 2, 100)
-    vectors = boss.get_bullet_vectors(SCREEN_WIDTH // 2, 600)
+    vectors, metadata = boss.get_bullet_vectors(SCREEN_WIDTH // 2, 600)
     assert len(vectors) > 0
     for vx, vy in vectors:
         # Should be valid velocities

@@ -287,7 +287,153 @@ def draw_help_screen(screen):
     screen.blit(hint, hint_rect)
 
 
-# ── Power-up indicators ────────────────────────────────────────────
+# ── Boss Health Bar ─────────────────────────────────────────────────
+
+def draw_boss_health_bar(screen, boss):
+    """Draw boss HP bar at the top of the screen."""
+    from game.l10n import L10n
+    _ = L10n._
+    if not boss or not boss.alive():
+        return
+
+    hp_ratio = boss.get_hp_ratio()
+    bar_x = (SCREEN_WIDTH - BOSS_HEALTH_BAR_WIDTH) // 2
+    bar_y = BOSS_HEALTH_BAR_Y
+
+    # Background
+    pygame.draw.rect(screen, BOSS_HEALTH_BAR_BG,
+                     (bar_x, bar_y, BOSS_HEALTH_BAR_WIDTH, BOSS_HEALTH_BAR_HEIGHT))
+
+    # Foreground (color based on HP)
+    if hp_ratio <= 0.33:
+        color = BOSS_HEALTH_BAR_LOW
+    elif hp_ratio <= 0.66:
+        color = BOSS_HEALTH_BAR_MED
+    else:
+        color = BOSS_HEALTH_BAR_HIGH
+
+    fill_w = int(BOSS_HEALTH_BAR_WIDTH * hp_ratio)
+    if fill_w > 0:
+        pygame.draw.rect(screen, color, (bar_x, bar_y, fill_w, BOSS_HEALTH_BAR_HEIGHT))
+
+    # Border
+    pygame.draw.rect(screen, WHITE, (bar_x, bar_y, BOSS_HEALTH_BAR_WIDTH, BOSS_HEALTH_BAR_HEIGHT), 1)
+
+    # Boss name label
+    font = _get_font(14, bold=True)
+    name_surf = font.render(_("boss_name"), True, YELLOW)
+    name_rect = name_surf.get_rect(center=(SCREEN_WIDTH // 2, bar_y + BOSS_HEALTH_BAR_HEIGHT + 16))
+    screen.blit(name_surf, name_rect)
+
+
+# ── Boss Warning ───────────────────────────────────────────────────
+
+def draw_boss_warning(screen, timer):
+    """Draw flashing 'WARNING' text before boss spawn."""
+    from game.l10n import L10n
+    _ = L10n._
+    if timer <= 0:
+        return
+
+    # Flash effect
+    flash_visible = (timer // BOSS_WARNING_FLASH_INTERVAL) % 2 == 0
+    if flash_visible:
+        warning_font = _get_font(56, bold=True)
+        warn_surf = warning_font.render(_("boss_warning"), True, RED)
+        warn_rect = warn_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 - 30))
+        # Glow effect
+        glow_surf = warning_font.render(_("boss_warning"), True, (100, 0, 0))
+        for dx, dy in [(-4, -4), (4, -4), (-4, 4), (4, 4)]:
+            screen.blit(glow_surf, (warn_rect.x + dx, warn_rect.y + dy))
+        screen.blit(warn_surf, warn_rect)
+
+        # Sub-text
+        sub_font = _get_font(22)
+        sub_surf = sub_font.render(_("boss_name"), True, YELLOW)
+        sub_rect = sub_surf.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2 + 30))
+        screen.blit(sub_surf, sub_rect)
+
+
+# ── Game Over Stats ────────────────────────────────────────────────
+
+def draw_game_over_stats(screen, stats):
+    """Draw statistics overlay on game over screen."""
+    from game.l10n import L10n
+    _ = L10n._
+
+    font_small = _get_font(18)
+    font_med = _get_font(22)
+
+    elapsed = time.time() - stats.get("start_time", time.time())
+    minutes = int(elapsed // 60)
+    seconds = int(elapsed % 60)
+    time_str = f"{minutes:02d}:{seconds:02d}"
+
+    lines = [
+        _("stat_title"),
+        _("stat_kills", stats.get("kills", 0)),
+        _("stat_bosses", stats.get("bosses_defeated", 0)),
+        _("stat_time", time_str),
+        _("stat_items", stats.get("items_used", 0)),
+        _("stat_combo_max", stats.get("max_combo", 0)),
+    ]
+
+    y_start = SCREEN_HEIGHT // 2 + 80
+    for i, line in enumerate(lines):
+        fnt = font_small if i > 0 else font_med
+        color = YELLOW if i == 0 else LIGHT_GRAY
+        surf = fnt.render(line, True, color)
+        rect = surf.get_rect(center=(SCREEN_WIDTH // 2, y_start + i * 24))
+        screen.blit(surf, rect)
+
+
+# ── Fade Transition ────────────────────────────────────────────────
+
+def draw_fade_overlay(screen, alpha):
+    """Draw a full-screen fade overlay. alpha=0 invisible, alpha=255 fully black."""
+    if alpha <= 0:
+        return
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, min(255, alpha)))
+    screen.blit(overlay, (0, 0))
+
+
+# ── Hit Flash ──────────────────────────────────────────────────────
+
+def draw_hit_flash(screen, timer):
+    """Draw red screen flash when player is hit."""
+    if timer <= 0:
+        return
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    alpha = min(100, timer * 30)  # fade quickly
+    overlay.fill((HIT_FLASH_COLOR[0], HIT_FLASH_COLOR[1], HIT_FLASH_COLOR[2], alpha))
+    screen.blit(overlay, (0, 0))
+
+
+# ── Laser Sweep ────────────────────────────────────────────────────
+
+def draw_laser_sweeps(screen, laser_sweeps):
+    """Draw active laser sweep beams and aim indicators."""
+    for sweep in laser_sweeps:
+        y = sweep["y"]
+        aim_frames = sweep.get("aim_frames", 0)
+
+        if aim_frames > 0:
+            # Aim indicator: thin red line across screen
+            alpha = max(50, min(200, 200 - (BOSS_LASER_AIM_FRAMES - aim_frames) * 8))
+            aim_surf = pygame.Surface((SCREEN_WIDTH, 2), pygame.SRCALPHA)
+            aim_surf.fill((BOSS_LASER_COLOR[0], BOSS_LASER_COLOR[1], BOSS_LASER_COLOR[2], alpha))
+            screen.blit(aim_surf, (0, y - 1))
+        else:
+            # Active beam: thicker with glow
+            x = sweep.get("current_x", sweep["start_x"])
+            beam_color = BOSS_LASER_COLOR
+            pygame.draw.circle(screen, beam_color, (int(x), int(y)),
+                               BOSS_LASER_WIDTH + 4)
+            pygame.draw.circle(screen, (255, 200, 200), (int(x), int(y)),
+                               BOSS_LASER_WIDTH + 2)
+            pygame.draw.circle(screen, (255, 255, 255), (int(x), int(y)),
+                               BOSS_LASER_WIDTH)
 
 def draw_powerup_indicators(screen, active_powerups):
     """Show active power-ups at the bottom of the screen."""

@@ -182,7 +182,12 @@ def test_quit_to_menu_enter_key():
     g._handle_single_playing_key(make_keydown(pygame.K_ESCAPE))  # pause
     g._handle_single_playing_key(make_keydown(pygame.K_DOWN))     # to quit
     g._handle_single_playing_key(make_keydown(pygame.K_RETURN))   # confirm quit
-    assert g.state.is_menu(), "Expected MENU after quit to menu"
+    # Fade transition: advance the animation until state changes
+    for _ in range(40):
+        g.update()
+        if g.state.is_menu():
+            break
+    assert g.state.is_menu(), "Expected MENU after quit to menu with fade"
 
 
 def test_quit_to_menu_running():

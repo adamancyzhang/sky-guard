@@ -10,8 +10,10 @@ from game.state import GameState
 from game.sprites.player import Player
 from game.sprites.bullet import Bullet
 from game.sprites.explosion import Explosion
-from game.sprites.enemy_bullet import EnemyBullet
+from game.sprites.enemy_bullet import EnemyBullet, HomingMissile
 from game.sprites.boss import Boss
+from game.sprites.item import Item
+from game.graphics.pixel_art import create_boss_surface_variant
 from game.sprites.sub_weapon_projectile import SubWeaponProjectile
 from game.systems.spawner import Spawner
 from game.systems.collision import (
@@ -39,6 +41,12 @@ from game.graphics.hud import (
     draw_network_countdown_screen,
     draw_disconnected_overlay,
     draw_coop_game_over_screen,
+    draw_boss_health_bar,
+    draw_boss_warning,
+    draw_game_over_stats,
+    draw_fade_overlay,
+    draw_hit_flash,
+    draw_laser_sweeps,
 )
 from game.graphics.screen_shake import ScreenShake
 from game.sounds.sound_manager import SoundManager
@@ -127,6 +135,31 @@ class Game:
         self.matchmaking_start_time = 0
         self.network_error_msg = ""
         self.online_count = 0
+
+        # ── Boss 入场警告 ──
+        self.boss_warning_timer = 0
+        self.boss_warning_active = False
+
+        # ── 画面过渡 ──
+        self.fade_alpha = 0
+        self.fade_state = None  # None | "fade_in" | "fade_out" | "hold"
+        self.fade_target = None  # state to switch to after fade
+        self.fade_hold_timer = 0
+
+        # ── 战斗统计 ──
+        self.game_stats = {
+            "kills": 0,
+            "bosses_defeated": 0,
+            "items_used": 0,
+            "max_combo": 0,
+            "start_time": 0,
+        }
+
+        # ── 红闪 ──
+        self.hit_flash_timer = 0
+
+        # ── 激光扫描 ──
+        self.laser_sweeps = []  # list of active laser beams
 
         # 注册网络事件
         self._register_network_callbacks()
@@ -421,9 +454,11 @@ class Game:
                     self.state.set(GameState.PLAYING)
                     self.pause_selection = 0
                 else:
-                    # Quit to menu
+                    # Quit to menu with fade
+                    self.fade_alpha = 0
+                    self.fade_state = "fade_out"
+                    self.fade_target = GameState.MENU
                     self._cleanup_game_state()
-                    self.state.set(GameState.MENU)
 
     def _handle_network_playing_key(self, event):
         if self.opponent_disconnected:
@@ -560,10 +595,13 @@ class Game:
     # ── 游戏控制 ──────────────────────────────────────────────────────
 
     def _start_game(self):
-        """Reset and start a new single-player game."""
+        """Reset and start a new single-player game with fade-in."""
         self.state.set(GameState.PLAYING)
         self.pause_selection = 0
         self._reset_game_state()
+        self.fade_alpha = 255
+        self.fade_state = "fade_in"
+        self.fade_target = None
 
     def _start_network_game(self):
         """Start a network game (co-op mode)."""
@@ -594,6 +632,15 @@ class Game:
         self.spawner.on_level_up = self._on_level_up
         self.background.switch_to_level(0)
         self.background.set_boss_mode(False)
+        self.boss_warning_active = False
+        self.boss_warning_timer = 0
+        self.laser_sweeps = []
+        self.hit_flash_timer = 0
+        self.game_stats["kills"] = 0
+        self.game_stats["bosses_defeated"] = 0
+        self.game_stats["items_used"] = 0
+        self.game_stats["max_combo"] = 0
+        self.game_stats["start_time"] = time.time()
 
     def _cleanup_game_state(self):
         """Clean up game state when quitting to menu (pause)."""
@@ -618,6 +665,26 @@ class Game:
     # ── 帧更新 ────────────────────────────────────────────────────────
 
     def update(self):
+        # ── 画面过渡更新（在暂停/游戏结束等所有状态下运行）──
+        if self.fade_state == "fade_out":
+            self.fade_alpha += FADE_OUT_SPEED
+            if self.fade_alpha >= 255:
+                self.fade_alpha = 255
+                if self.fade_target is not None:
+                    self.state.set(self.fade_target)
+                    self.fade_target = None
+                self.fade_state = "hold"
+                self.fade_hold_timer = FADE_PAUSE_FRAMES
+        elif self.fade_state == "hold":
+            self.fade_hold_timer -= 1
+            if self.fade_hold_timer <= 0:
+                self.fade_state = "fade_in"
+        elif self.fade_state == "fade_in":
+            self.fade_alpha = max(0, self.fade_alpha - FADE_IN_SPEED)
+            if self.fade_alpha <= 0:
+                self.fade_alpha = 0
+                self.fade_state = None
+
         # ── 暂停状态：跳过所有游戏逻辑 ──
         if self.state.is_paused():
             return
@@ -684,26 +751,35 @@ class Game:
 
             self.enemy_bullets_group.update()
 
-            # Boss spawn check
+            # Boss spawn check — 带入场警告
             if self.spawner.check_boss_spawn(
                 self.shared_score if is_coop else self.player.score,
             ):
-                boss = Boss()
-                self.boss_group.add(boss)
-                # Clear regular enemies for dramatic effect
-                self.enemies_group.empty()
-                self.background.set_boss_mode(True)
+                self.boss_warning_active = True
+                self.boss_warning_timer = BOSS_WARNING_FRAMES
                 self.sound_manager.play("game_over")
-                self.screen_shake.shake(8.0)
+                self.screen_shake.shake(6.0)
+
+            # Boss 警告计时
+            if self.boss_warning_active:
+                self.boss_warning_timer -= 1
+                if self.boss_warning_timer <= 0:
+                    self.boss_warning_active = False
+                    boss = Boss()
+                    self.boss_group.add(boss)
+                    self.enemies_group.empty()
+                    self.background.set_boss_mode(True)
+                    self.sound_manager.play("game_over")
 
             # Boss update + shooting
             if self.boss_group.sprite and self.boss_group.sprite.alive():
                 self.boss_group.update()
                 boss = self.boss_group.sprite
                 if boss.should_shoot():
-                    vectors = boss.get_bullet_vectors(
+                    vectors, metadata = boss.get_bullet_vectors(
                         self.player.rect.centerx, self.player.rect.centery
                     )
+                    # Regular bullet vectors
                     for vx, vy in vectors:
                         bullet = EnemyBullet(
                             boss.rect.centerx, boss.rect.centery,
@@ -712,6 +788,35 @@ class Game:
                         bullet.vx = vx
                         bullet.vy = vy
                         self.enemy_bullets_group.add(bullet)
+                    # Laser sweep
+                    if "laser_sweep" in metadata:
+                        sweep = metadata["laser_sweep"]
+                        self.laser_sweeps.append(sweep)
+                    # Homing missiles
+                    if "homing_missile" in metadata:
+                        hm_cfg = metadata["homing_missile"]
+                        for vx, vy in vectors:
+                            missile = HomingMissile(
+                                boss.rect.centerx, boss.rect.centery,
+                                vx, vy,
+                                lambda: self.player,
+                                damage=hm_cfg["damage"],
+                            )
+                            self.enemy_bullets_group.add(missile)
+
+            # Boss 召唤小兵
+            if self.boss_group.sprite and self.boss_group.sprite.can_summon():
+                boss = self.boss_group.sprite
+                if boss.should_summon():
+                    for x, y in boss.get_summon_positions():
+                        from game.sprites.enemy import Enemy
+                        minion = Enemy(BOSS_SUMMON_MINION_TYPE, x=int(x))
+                        minion.rect.y = y
+                        minion.rect.x = x
+                        self.enemies_group.add(minion)
+
+            # Laser sweep 更新
+            self._update_laser_sweeps(self.player)
 
             # Collision detection — pass powerups_group for drops
             killed_info = []
@@ -735,6 +840,11 @@ class Game:
                 if is_coop and self.net_client and killed_info:
                     for eid, pts, ptype in killed_info:
                         self.net_client.send_enemy_killed(eid, pts, ptype)
+
+            # 战斗统计：击杀 + 最大连击
+            self.game_stats["kills"] += len(killed_info)
+            if self.player.combo_count > self.game_stats["max_combo"]:
+                self.game_stats["max_combo"] = self.player.combo_count
 
             # Power-up collection
             collected_type = check_player_powerup_collisions(self.player, self.powerups_group)
@@ -765,7 +875,8 @@ class Game:
             )
             if hit:
                 self.sound_manager.play("hit")
-                self.screen_shake.shake(6.0)
+                self.screen_shake.shake(SHAKE_HIT_INTENSITY)
+                self.hit_flash_timer = HIT_FLASH_FRAMES
                 if self.state.current == GameState.NETWORK_PLAYING:
                     # 合作模式：从共享生命池扣减
                     self.shared_lives -= 1
@@ -781,7 +892,8 @@ class Game:
             )
             if enemy_bullet_hit:
                 self.sound_manager.play("hit")
-                self.screen_shake.shake(5.0)
+                self.screen_shake.shake(SHAKE_HIT_INTENSITY)
+                self.hit_flash_timer = HIT_FLASH_FRAMES
                 if self.state.current == GameState.NETWORK_PLAYING:
                     # 合作模式：从共享生命池扣减
                     self.shared_lives -= 1
@@ -802,7 +914,11 @@ class Game:
                         bullet.kill()
                     if destroyed:
                         self.player.score += boss.score_value
-                        # Big explosion
+                        self.game_stats["bosses_defeated"] += 1
+                        self.game_stats["kills"] += 1  # count boss as a kill
+                        # Multi-stage shake on boss defeat
+                        for intensity in SHAKE_BOSS_DEFEAT:
+                            self.screen_shake.shake(intensity)
                         for _ in range(5):
                             Explosion(
                                 boss.rect.centerx + random.randint(-30, 30),
@@ -818,60 +934,77 @@ class Game:
                     break
 
             self.screen_shake.update()
-
-            # 网络对战：合作模式同步
-            if self.state.current == GameState.NETWORK_PLAYING and self.net_client:
-                self.coop_frame_counter += 1
-                # 每 3 帧发送一次位置/状态（降低网络开销）
-                if self.coop_frame_counter % 3 == 0:
-                    self.net_client.send_player_state(
-                        self.player.rect.centerx,
-                        self.player.rect.centery,
-                        self.shared_lives,
-                        self.shared_score,
-                    )
-
-                # 处理伙伴击杀的敌机同步（从本地移除）
-                if self.enemy_kill_queue:
-                    to_kill = set(self.enemy_kill_queue)
-                    self.enemy_kill_queue.clear()
-                    for enemy in list(self.enemies_group):
-                        if getattr(enemy, 'eid', None) in to_kill:
-                            Explosion(enemy.rect.centerx, enemy.rect.centery,
-                                      self.explosions_group)
-                            enemy.kill()
-
-                # 伙伴位置平滑插值（lerp 到目标位置）
-                tx = self.partner_state.get("target_x", 0)
-                ty = self.partner_state.get("target_y", 0)
-                cx = self.partner_state.get("x", 0)
-                cy = self.partner_state.get("y", 0)
-                self.partner_state["x"] = cx + (tx - cx) * 0.35
-                self.partner_state["y"] = cy + (ty - cy) * 0.35
-
-                # 更新伙伴子弹（向上移动 + 衰减）
-                self._update_partner_bullets()
-
-                # Host 每 6 帧发送敌机位置快照给 guest
-                if self.is_host and self.coop_frame_counter % 6 == 0:
-                    enemy_list = []
-                    for e in self.enemies_group:
-                        eid = getattr(e, "eid", None)
-                        if eid is not None:
-                            enemy_list.append({"eid": eid, "x": e.rect.x, "y": e.rect.y})
-                    if enemy_list:
-                        self.net_client.send_enemy_snapshot(enemy_list)
-
-            # 合作模式：共享生命池逻辑（覆盖 player.lives）
-            if self.state.current == GameState.NETWORK_PLAYING:
-                # 实际生命值以 shared_lives 为准
-                if self.shared_lives <= 0:
-                    self._on_player_death()
-
             # 网络对战：检测对手断线 → 暂停游戏显示断线提示
             if self.state.current == GameState.NETWORK_PLAYING and self.opponent_disconnected:
                 # 游戏暂停，等待用户按 ENTER
                 pass
+
+        # 画面过渡更新（在所有状态下运行）
+        if self.fade_state == "fade_out":
+            self.fade_alpha += FADE_OUT_SPEED
+            if self.fade_alpha >= 255:
+                self.fade_alpha = 255
+                if self.fade_target is not None:
+                    self.state.set(self.fade_target)
+                    self.fade_target = None
+                self.fade_state = "hold"
+                self.fade_hold_timer = FADE_PAUSE_FRAMES
+        elif self.fade_state == "hold":
+            self.fade_hold_timer -= 1
+            if self.fade_hold_timer <= 0:
+                self.fade_state = "fade_in"
+        elif self.fade_state == "fade_in":
+            self.fade_alpha -= FADE_IN_SPEED
+            if self.fade_alpha <= 0:
+                self.fade_alpha = 0
+                self.fade_state = None
+
+        # 网络对战：合作模式同步（在 playing 状态外运行）
+        if self.state.current == GameState.NETWORK_PLAYING and self.net_client:
+            self.coop_frame_counter += 1
+            if self.coop_frame_counter % 3 == 0:
+                self.net_client.send_player_state(
+                    self.player.rect.centerx,
+                    self.player.rect.centery,
+                    self.shared_lives,
+                    self.shared_score,
+                )
+
+            if self.enemy_kill_queue:
+                to_kill = set(self.enemy_kill_queue)
+                self.enemy_kill_queue.clear()
+                for enemy in list(self.enemies_group):
+                    if getattr(enemy, 'eid', None) in to_kill:
+                        Explosion(enemy.rect.centerx, enemy.rect.centery,
+                                  self.explosions_group)
+                        enemy.kill()
+
+            tx = self.partner_state.get("target_x", 0)
+            ty = self.partner_state.get("target_y", 0)
+            cx = self.partner_state.get("x", 0)
+            cy = self.partner_state.get("y", 0)
+            self.partner_state["x"] = cx + (tx - cx) * 0.35
+            self.partner_state["y"] = cy + (ty - cy) * 0.35
+
+            self._update_partner_bullets()
+
+            if self.is_host and self.coop_frame_counter % 6 == 0:
+                enemy_list = []
+                for e in self.enemies_group:
+                    eid = getattr(e, "eid", None)
+                    if eid is not None:
+                        enemy_list.append({"eid": eid, "x": e.rect.x, "y": e.rect.y})
+                if enemy_list:
+                    self.net_client.send_enemy_snapshot(enemy_list)
+
+        # 合作模式：共享生命池逻辑
+        if self.state.current == GameState.NETWORK_PLAYING:
+            if self.shared_lives <= 0:
+                self._on_player_death()
+
+        # 网络对战：检测对手断线
+        if self.state.current == GameState.NETWORK_PLAYING and self.opponent_disconnected:
+            pass
 
     def _update_partner_bullets(self):
         """更新伙伴子弹位置（和玩家子弹一样射到顶）"""
@@ -899,12 +1032,44 @@ class Game:
             self._partner_img = ship
         return self._partner_img
 
+    def _update_laser_sweeps(self, player):
+        """Update active laser sweeps and check collision with player."""
+        alive = []
+        for sweep in self.laser_sweeps:
+            x = sweep["start_x"]
+            y = sweep["y"]
+            speed = sweep["speed"]
+            direction = sweep["direction"]
+            aim_frames = sweep.get("aim_frames", 20)
+
+            if aim_frames > 0:
+                # Still aiming: store for draw but don't move yet
+                sweep["aim_frames"] = aim_frames - 1
+                sweep["current_x"] = x
+                alive.append(sweep)
+            else:
+                # Beam moving
+                x += direction * speed
+                sweep["current_x"] = x
+                # Check collision with player
+                if (player and player.alive() and not player.invincible and
+                        abs(player.rect.centery - y) < 20 and
+                        abs(player.rect.centerx - x) < BOSS_LASER_WIDTH + 10):
+                    # Hit player
+                    pass  # collision handled by enemy_bullet group already
+                # Remove if off-screen
+                if 0 < x < SCREEN_WIDTH:
+                    alive.append(sweep)
+        self.laser_sweeps = alive
+
     def _on_player_death(self):
-        """Handle player death."""
+        """Handle player death with fade transition."""
         from game.highscore import HighScore
         if self.state.current == GameState.PLAYING:
             HighScore.save_if_beaten(self.player.score)
-            self.state.set(GameState.GAME_OVER)
+            self.game_stats["start_time"] = time.time()  # freeze elapsed time
+            self.fade_state = "fade_out"
+            self.fade_target = GameState.GAME_OVER
         elif self.state.current == GameState.NETWORK_PLAYING:
             self.state.set(GameState.NETWORK_GAME_OVER)
         self.sound_manager.play("game_over")
@@ -935,6 +1100,7 @@ class Game:
             if result is not None:
                 item_type, _ = result
                 effect = self.player.activate_item_effect(item_type)
+                self.game_stats["items_used"] += 1
                 self._apply_item_effect(effect)
 
         # ── 武器切换 (Q/E) ──
@@ -1176,6 +1342,7 @@ class Game:
         elif current == GameState.GAME_OVER:
             self.background.draw(self.virtual_surf)
             draw_game_over_screen(self.virtual_surf, self.player.score)
+            draw_game_over_stats(self.virtual_surf, self.game_stats)
 
         elif current == GameState.NETWORK_GAME_OVER:
             pname = self.net_client.username if self.net_client else "我"
@@ -1241,6 +1408,14 @@ class Game:
             self.items_group.draw(self.virtual_surf)
             self.enemy_bullets_group.draw(self.virtual_surf)
             self.boss_group.draw(self.virtual_surf)
+            # Homing missile trails (drawn behind missiles)
+            for ebullet in self.enemy_bullets_group:
+                if hasattr(ebullet, 'get_trail'):
+                    pts = ebullet.get_trail()
+                    for i in range(len(pts) - 1):
+                        alpha = int(100 * (i / len(pts)))
+                        pygame.draw.line(self.virtual_surf, (255, 150, 50, alpha),
+                                         pts[i], pts[i + 1], 2)
             self.player_group.add(self.player)
             self.player_group.draw(self.virtual_surf)
             # Option 辅助机渲染
@@ -1256,8 +1431,21 @@ class Game:
                 self.player.active_powerups,
                 player=self.player,
             )
+            # Boss 血条
+            if self.boss_group.sprite:
+                draw_boss_health_bar(self.virtual_surf, self.boss_group.sprite)
+            # Boss 入场警告
+            if self.boss_warning_active:
+                draw_boss_warning(self.virtual_surf, self.boss_warning_timer)
+            # 激光扫描
+            draw_laser_sweeps(self.virtual_surf, self.laser_sweeps)
+            # 红闪
+            draw_hit_flash(self.virtual_surf, self.hit_flash_timer)
             if current == GameState.PAUSED:
                 draw_pause_screen(self.virtual_surf, self.pause_selection)
+
+        # 画面过渡叠加层（在所有状态绘制完成后）
+        draw_fade_overlay(self.virtual_surf, self.fade_alpha)
 
         # Scale virtual surface to display window — apply screen shake offset
         shake_dx, shake_dy = self.screen_shake.get_offset()

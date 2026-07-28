@@ -95,6 +95,18 @@ _STRINGS = {
         "pause_title": "PAUSED",
         "pause_resume": "RESUME",
         "pause_quit": "QUIT TO MENU",
+
+        # ── Boss / Visual FX (en) ──
+        "boss_name": "DREADNOUGHT",
+        "boss_warning": "⚠ WARNING ⚠",
+        "boss_summon": "INCOMING!",
+        "boss_defeated": "DESTROYED!",
+        "stat_kills": "ENEMIES DESTROYED: {}",
+        "stat_bosses": "BOSSES DEFEATED: {}",
+        "stat_time": "TIME SURVIVED: {}",
+        "stat_items": "ITEMS USED: {}",
+        "stat_combo_max": "MAX COMBO: {}",
+        "stat_title": "--- STATISTICS ---",
     },
     "zh": {
         "title": "天穹守卫",
@@ -189,6 +201,18 @@ _STRINGS = {
         "pause_title": "已暂停",
         "pause_resume": "继续游戏",
         "pause_quit": "返回主菜单",
+
+        # ── Boss / 视觉特效 (zh) ──
+        "boss_name": "无畏号",
+        "boss_warning": "⚠ 警告 ⚠",
+        "boss_summon": "敌机来袭！",
+        "boss_defeated": "击破！",
+        "stat_kills": "击毁敌机：{}",
+        "stat_bosses": "击败 Boss：{}",
+        "stat_time": "存活时间：{}",
+        "stat_items": "使用道具：{}",
+        "stat_combo_max": "最大连击：{}",
+        "stat_title": "--- 战斗统计 ---",
     },
 }
 

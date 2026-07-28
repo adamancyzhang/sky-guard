@@ -108,10 +108,15 @@ BOSS_BULLET_CONFIGS = [
     {"pattern": "aimed", "count": 1, "interval": 25},
     # Pattern 3: circle (full 360 burst)
     {"pattern": "circle", "count": 8, "interval": 60},
+    # Pattern 4: laser sweep (horizontal line across screen)
+    {"pattern": "laser_sweep", "count": 1, "interval": 80},
+    # Pattern 5: homing missiles
+    {"pattern": "homing_missile", "count": 2, "interval": 70},
 ]
 BOSS_PHASE_THRESHOLDS = {
-    0.66: "circle",    # below 66% HP: circle pattern
-    0.33: "aimed",     # below 33% HP: aimed pattern
+    0.66: "circle",       # below 66% HP: circle pattern
+    0.50: None,           # at 50%: enable summon (no pattern change)
+    0.33: "aimed",        # below 33% HP: aimed + laser_sweep
 }
 
 # Power-up settings
@@ -247,6 +252,82 @@ BOSS_PARTICLE_RATE = 0.2               # particles per frame
 
 # Transition
 BG_TRANSITION_DURATION = 30  # frames (0.5s at 60fps)
+
+# ══════════════════════════════════════════════════════════════════════
+# Boss 增强配置
+# ══════════════════════════════════════════════════════════════════════
+
+# Boss 血条
+BOSS_HEALTH_BAR_WIDTH = 300
+BOSS_HEALTH_BAR_HEIGHT = 14
+BOSS_HEALTH_BAR_Y = 10
+BOSS_HEALTH_BAR_BG = (60, 20, 20)
+BOSS_HEALTH_BAR_LOW = (255, 50, 50)     # HP < 33%
+BOSS_HEALTH_BAR_MED = (255, 200, 50)    # HP 33-66%
+BOSS_HEALTH_BAR_HIGH = (50, 200, 50)    # HP > 66%
+
+# Boss 入场警告
+BOSS_WARNING_FRAMES = 90       # 1.5s warning before boss appears
+BOSS_WARNING_FLASH_INTERVAL = 8  # flash every 8 frames
+
+# Laser Sweep 弹幕
+BOSS_LASER_COLOR = (255, 50, 50)
+BOSS_LASER_AIM_FRAMES = 20     # 提示线持续时间
+BOSS_LASER_WIDTH = 3
+BOSS_LASER_SPEED = 6
+LASER_SWEEP_CONFIG = {
+    "pattern": "laser_sweep",
+    "count": 1,
+    "interval": 80,             # slower between volleys
+}
+
+# Homing 跟踪弹
+HOMING_MISSILE_CONFIG = {
+    "pattern": "homing_missile",
+    "count": 2,
+    "interval": 70,
+    "damage": 1,
+    "speed": 4,
+    "homing_strength": 0.04,
+    "lifetime": 180,            # 3 seconds max
+}
+
+# Boss 召唤小兵
+BOSS_SUMMON_ENABLED = True
+BOSS_SUMMON_HP_THRESHOLD = 0.50   # below 50% HP
+BOSS_SUMMON_INTERVAL = 300        # every 5 seconds
+BOSS_SUMMON_COUNT = 2             # 2 minions per wave
+BOSS_SUMMON_MINION_TYPE = "basic"
+
+# Boss 击败序列
+BOSS_DEFEAT_FLASH_FRAMES = 30     # 0.5s flashing
+BOSS_DEFEAT_EXPLOSION_COUNT = 8   # 8 particles
+BOSS_DEFEAT_FINAL_FRAMES = 20     # lingering particles
+
+# Boss 多阶段颜色
+BOSS_PHASE_COLORS = {
+    "fighting": (200, 50, 200),       # 默认紫色
+    "circle":   (255, 100, 50),       # 红色（HP<66%）
+    "aimed":    (255, 220, 50),       # 金色闪烁（HP<33%）
+}
+
+# ══════════════════════════════════════════════════════════════════════
+# 画面特效配置
+# ══════════════════════════════════════════════════════════════════════
+
+# 过渡效果
+FADE_IN_SPEED = 12              # alpha per frame (12*15=180 → visible in 0.25s)
+FADE_OUT_SPEED = 8              # slower fade-out
+FADE_PAUSE_FRAMES = 15          # hold at black before game over transition
+
+# 红闪效果（受击）
+HIT_FLASH_FRAMES = 3
+HIT_FLASH_COLOR = (255, 30, 30)
+
+# 屏幕震增强度
+SHAKE_HIT_INTENSITY = 8.0       # player hit
+SHAKE_EXPLOSION_INTENSITY = 4.0  # normal explosion
+SHAKE_BOSS_DEFEAT = [10.0, 6.0, 3.0]  # multi-stage on boss defeat
 
 # ══════════════════════════════════════════════════════════════════════
 # 武器系统配置
