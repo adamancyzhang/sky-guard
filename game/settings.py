@@ -503,3 +503,54 @@ ITEM_TYPES = {
         "icon": "gravity_bomb",
     },
 }
+
+# ══════════════════════════════════════════════════════════════════════
+# Particle system
+# ══════════════════════════════════════════════════════════════════════
+PARTICLE_POOL_SIZE = 300
+PARTICLE_SPARK_SPEED = 3.0
+PARTICLE_TRAIL_SPEED = 1.5
+PARTICLE_GLOW_LIFETIME = 20
+
+# Spark colors (muzzle flash, enemy fragments, boss hits)
+SPARK_COLOR_PLAYER = (255, 255, 200)   # warm white
+SPARK_COLOR_ENEMY  = (255, 100, 50)    # orange-red
+SPARK_COLOR_BOSS   = (255, 50, 50)     # bright red
+SPARK_COLOR_PICKUP = (255, 255, 100)   # gold
+
+# Score popup
+SCORE_POPUP_LIFETIME = 30   # frames
+SCORE_POPUP_SPEED = 2.0     # upward pixels/frame
+
+# Engine trail
+ENGINE_TRAIL_RATE = 2       # spawn every N frames
+ENGINE_TRAIL_COLOR_TOP = (100, 180, 255)    # light blue
+ENGINE_TRAIL_COLOR_BOTTOM = (50, 80, 200)   # dark blue
+
+# Combo popup
+COMBO_POPUP_LIFETIME = 45   # frames
+COMBO_POPUP_SCALE_START = 1.5
+
+# ══════════════════════════════════════════════════════════════════════
+# Music
+# ══════════════════════════════════════════════════════════════════════
+BGM_MENU_BPM = 60
+BGM_PLAY_BPM = 120
+BGM_BOSS_BPM = 140
+
+BGM_VOLUME_DEFAULT = 0.5
+SFX_VOLUME_DEFAULT = 0.7
+
+# ══════════════════════════════════════════════════════════════════════
+# UI animations
+# ══════════════════════════════════════════════════════════════════════
+TITLE_BREATH_AMPLITUDE = 0.02     # sin wave scale multiplier
+TITLE_BREATH_SPEED = 0.003         # sin wave frequency
+
+MENU_GLOW_ALPHA = 80
+MENU_GLOW_PULSE_SPEED = 0.05
+
+HUD_SCORE_POP_SCALE = 1.3
+HUD_SCORE_POP_FRAMES = 6
+
+WEAPON_SWITCH_HIGHLIGHT_FRAMES = 12

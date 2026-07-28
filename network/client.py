@@ -9,9 +9,8 @@ import asyncio
 import json
 import logging
 import threading
-import time
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, Optional
 
 # websockets 是可选依赖 — 未安装时联网功能不可用，但单人模式不受影响
 _HAS_WEBSOCKETS = False
@@ -23,7 +22,7 @@ except ImportError:
     websockets = None  # type: ignore
     connect = None  # type: ignore
 
-from .protocol import MessageType, NetworkEvent, DEFAULT_HOST, DEFAULT_PORT
+from .protocol import DEFAULT_HOST, DEFAULT_PORT, MessageType, NetworkEvent
 
 log = logging.getLogger("network.client")
 
@@ -47,8 +46,8 @@ class NetworkClient:
         self.server_url = f"ws://{host}:{port}"
 
         # 玩家信息
-        self.player_id: Optional[str] = None
-        self.username: Optional[str] = None
+        self.player_id: str | None = None
+        self.username: str | None = None
 
         # 连接状态
         self.status = ConnectionStatus.DISCONNECTED
@@ -62,10 +61,10 @@ class NetworkClient:
 
         # 内部
         self._ws = None
-        self._loop: Optional[asyncio.AbstractEventLoop] = None
-        self._thread: Optional[threading.Thread] = None
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._thread: threading.Thread | None = None
         self._running = False
-        self._reconnect_timer: Optional[threading.Timer] = None
+        self._reconnect_timer: threading.Timer | None = None
         self._max_reconnect_attempts = 5
         self._reconnect_attempt = 0
         self._reconnect_delay = 1.0  # seconds, doubles each attempt
@@ -79,7 +78,7 @@ class NetworkClient:
         self._listeners[event].append(callback)
         return self  # 支持链式调用
 
-    def off(self, event: str, callback: Optional[Callable] = None):
+    def off(self, event: str, callback: Callable | None = None):
         """注销事件监听。不传 callback 则移除该事件全部监听。"""
         if event not in self._listeners:
             return
@@ -88,7 +87,7 @@ class NetworkClient:
         else:
             self._listeners[event] = [cb for cb in self._listeners[event] if cb is not callback]
 
-    def _emit(self, event: str, data: dict = None):
+    def _emit(self, event: str, data: dict | None = None):
         """将事件放入队列，主线程在 process_events() 中消费"""
         with self._queue_lock:
             self._event_queue.append((event, data or {}))
@@ -372,7 +371,7 @@ class NetworkClient:
             "state": {"x": x, "y": y, "lives": lives, "score": score},
         })
 
-    def send_enemy_killed(self, enemy_id: int, score: int = 0, powerup_type: str = None):
+    def send_enemy_killed(self, enemy_id: int, score: int, powerup_type: str | None = None):
         """发送敌机击杀事件（附带道具信息用于伙伴端渲染）"""
         msg = {
             "type": MessageType.ENEMY_KILLED,

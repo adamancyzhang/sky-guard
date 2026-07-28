@@ -1,11 +1,20 @@
 # game/systems/collision.py
-import random
 import math
+import random
+
 import pygame
-from game.settings import POWERUP_DROP_CHANCE, POWERUP_TYPES, ITEM_DROP_CHANCE, ITEM_TYPES, SCREEN_WIDTH, SCREEN_HEIGHT
+
+from game.settings import (
+    ITEM_DROP_CHANCE,
+    ITEM_TYPES,
+    POWERUP_DROP_CHANCE,
+    POWERUP_TYPES,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 from game.sprites.explosion import Explosion
-from game.sprites.powerup import PowerUp
 from game.sprites.item import Item
+from game.sprites.powerup import PowerUp
 
 
 def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group,
@@ -33,7 +42,7 @@ def check_bullet_enemy_collisions(bullets_group, enemies_group, explosions_group
                 score_earned += enemy.score_value
                 # ── 连击系统 ──
                 if player:
-                    milestone = player.register_kill()
+                    player.register_kill()
                     score_mult = player.get_score_multiplier()
                     score_earned = int(score_earned * score_mult)
                 # ── 道具掉落 ──

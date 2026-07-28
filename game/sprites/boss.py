@@ -1,9 +1,11 @@
 # game/sprites/boss.py
-import pygame
-import random
 import math
-from game.settings import *
+import random
+
+import pygame
+
 from game.graphics.pixel_art import create_boss_surface, create_boss_surface_variant
+from game.settings import *
 
 
 class Boss(pygame.sprite.Sprite):

@@ -1,9 +1,10 @@
 # game/sprites/sub_weapon_projectile.py
-import pygame
 import math
-import random
-from game.settings import *
+
+import pygame
+
 from game.graphics.pixel_art import create_sub_weapon_surface
+from game.settings import *
 
 
 class SubWeaponProjectile(pygame.sprite.Sprite):
@@ -104,9 +105,7 @@ class SubWeaponProjectile(pygame.sprite.Sprite):
             self.has_exploded = True
             return True
         elif self.sub_type == "mine":
-            if self.armed and self.rect.colliderect(enemy.rect):
-                return True
-            return False
+            return bool(self.armed and self.rect.colliderect(enemy.rect))
         else:
             # Missile: standard collision
             return self.rect.colliderect(enemy.rect)

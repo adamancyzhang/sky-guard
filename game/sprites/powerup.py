@@ -1,7 +1,8 @@
 # game/sprites/powerup.py
 import pygame
-from game.settings import *
+
 from game.graphics.pixel_art import create_powerup_surface
+from game.settings import *
 
 
 class PowerUp(pygame.sprite.Sprite):

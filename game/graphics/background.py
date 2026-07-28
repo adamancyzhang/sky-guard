@@ -1,8 +1,17 @@
 # game/graphics/background.py
-import pygame
 import random
-from game.settings import SCREEN_WIDTH, SCREEN_HEIGHT, BG_THEMES, BG_TRANSITION_DURATION
-from game.settings import BOSS_BG_OVERLAY_COLOR, BOSS_BG_OVERLAY_ALPHA, BOSS_PARTICLE_TYPE, BOSS_PARTICLE_RATE
+
+import pygame
+
+from game.settings import (
+    BG_THEMES,
+    BG_TRANSITION_DURATION,
+    BOSS_BG_OVERLAY_ALPHA,
+    BOSS_BG_OVERLAY_COLOR,
+    BOSS_PARTICLE_RATE,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+)
 
 
 def generate_layer_surface(layer_config):
@@ -38,7 +47,7 @@ def generate_layer_surface(layer_config):
             x = rng.randint(0, SCREEN_WIDTH)
             y = rng.randint(0, SCREEN_HEIGHT)
             r = rng.randint(1, 2)
-            bright = rng.randint(30, 80) if seed is None else rng.randint(30, 80)
+            bright = rng.randint(30, 80)
             star_color = (bright, bright, bright + 20)
             pygame.draw.circle(surf, star_color, (x, y), r)
 
@@ -317,6 +326,7 @@ class LevelBackgroundManager:
         self.boss_active = False
         self.transition = None
         self.particle_system = BackgroundParticles()
+        self.menu_particles = None
         self._build_layers()
         self.particle_system.reset(self.current_theme.get("particles", []))
 
@@ -421,6 +431,28 @@ class LevelBackgroundManager:
             overlay.fill(BOSS_BG_OVERLAY_COLOR)
             overlay.set_alpha(BOSS_BG_OVERLAY_ALPHA)
             screen.blit(overlay, (0, 0))
+
+    def init_menu_particles(self):
+        """Initialize floating star particles for the menu background."""
+        from game.graphics.particles import ParticleManager, spawn_menu_stars
+        if self.menu_particles is None:
+            self.menu_particles = ParticleManager(50)
+            spawn_menu_stars(self.menu_particles, SCREEN_WIDTH, SCREEN_HEIGHT, count=30)
+
+    def update_menu_particles(self):
+        """Update & recycle menu stars. Re-spawn dead ones to keep count steady."""
+        if self.menu_particles is None:
+            return
+        self.menu_particles.update()
+        dead_count = sum(1 for p in self.menu_particles.pool if p.dead)
+        if dead_count > 10:
+            from game.graphics.particles import spawn_menu_stars
+            spawn_menu_stars(self.menu_particles, SCREEN_WIDTH, SCREEN_HEIGHT,
+                             count=dead_count)
+
+    def draw_menu_particles(self, surf):
+        if self.menu_particles:
+            self.menu_particles.draw(surf)
 
 
 # Backward-compatible alias

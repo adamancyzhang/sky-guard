@@ -1,8 +1,10 @@
 # game/graphics/hud.py
-import pygame
-import os
 import math
+import os
 import time
+
+import pygame
+
 from game.settings import *
 
 # Path to bundled fonts
@@ -509,7 +511,7 @@ def draw_weapon_hud(screen, player):
 
     # ── 连击（右侧） ──
     if player.combo_count > 0:
-        combo_x = SCREEN_WIDTH - _MARGIN - 70
+        SCREEN_WIDTH - _MARGIN - 70
         combo_color = YELLOW if player.has_combo_buff() else LIGHT_GRAY
         combo_surf = font_med.render(f"{player.combo_count}x", True, combo_color)
         combo_rect = combo_surf.get_rect(topright=(SCREEN_WIDTH - _MARGIN, y_start))

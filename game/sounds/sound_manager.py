@@ -1,8 +1,9 @@
 # game/sounds/sound_manager.py
-import pygame
-import math
 import array
+import math
 import random
+
+import pygame
 
 
 class SoundManager:
@@ -13,6 +14,7 @@ class SoundManager:
         except pygame.error:
             self.available = False
         self.sounds = {}
+        self._master_volume = 1.0
         if self.available:
             self._create_sounds()
 
@@ -64,9 +66,22 @@ class SoundManager:
             buf[i] = int(val * 8000 * fade)
         return pygame.mixer.Sound(buffer=buf)
 
+    def set_volume(self, vol):
+        """Set master volume for all sound effects (0.0 - 1.0)."""
+        self._master_volume = max(0.0, min(1.0, vol))
+        for sound in self.sounds.values():
+            try:
+                sound.set_volume(self._master_volume)
+            except pygame.error:
+                pass
+
+    def get_volume(self):
+        return self._master_volume
+
     def play(self, name):
         if self.available and name in self.sounds:
             try:
+                self.sounds[name].set_volume(self._master_volume)
                 self.sounds[name].play()
             except pygame.error:
                 pass

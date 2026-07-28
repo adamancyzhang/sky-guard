@@ -1,7 +1,9 @@
 # game/sprites/explosion.py
-import pygame
-import random
 import math
+import random
+
+import pygame
+
 from game.settings import *
 
 

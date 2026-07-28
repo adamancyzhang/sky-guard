@@ -1,7 +1,8 @@
 # game/sprites/player.py
 import pygame
-from game.settings import *
+
 from game.graphics.pixel_art import create_player_ship
+from game.settings import *
 
 
 class Player(pygame.sprite.Sprite):

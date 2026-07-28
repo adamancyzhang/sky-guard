@@ -17,10 +17,6 @@ class MessageType:
     LEAVE_MATCHMAKING = "leave_matchmaking" # 离开匹配队列
     GAME_INPUT = "game_input"           # 发送游戏输入给对方
     PLAYER_STATE = "player_state"       # 发送玩家位置/状态（高频）
-    ENEMY_KILLED = "enemy_killed"       # 通知服务器自己击杀了一个敌机
-    PARTNER_BULLET = "partner_bullet"   # 通知服务器自己在射击
-    COOP_READY = "coop_ready"           # 玩家已准备好开始合作游戏
-    ENEMY_SNAPSHOT = "enemy_snapshot"   # host 发送敌机位置快照给 guest
     PING = "ping"                        # 心跳
 
     # ── 服务器 → 客户端 ──────────────────────────────────

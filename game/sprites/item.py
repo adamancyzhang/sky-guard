@@ -1,7 +1,8 @@
 # game/sprites/item.py
 import pygame
-from game.settings import *
+
 from game.graphics.pixel_art import create_item_surface
+from game.settings import *
 
 
 class Item(pygame.sprite.Sprite):

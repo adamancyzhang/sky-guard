@@ -1,6 +1,8 @@
 # game/sprites/enemy_bullet.py
-import pygame
 import math
+
+import pygame
+
 from game.settings import *
 
 

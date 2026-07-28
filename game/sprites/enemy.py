@@ -1,9 +1,11 @@
 # game/sprites/enemy.py
-import pygame
-import random
 import math
-from game.settings import *
+import random
+
+import pygame
+
 from game.graphics.pixel_art import create_enemy_surface
+from game.settings import *
 
 
 class Enemy(pygame.sprite.Sprite):

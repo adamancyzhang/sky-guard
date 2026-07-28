@@ -1,55 +1,53 @@
 # main.py
-import pygame
+import math
 import random
 import sys
 import time
-import math
-from typing import Optional
-from game.settings import *
-from game.state import GameState
-from game.sprites.player import Player
-from game.sprites.bullet import Bullet
-from game.sprites.explosion import Explosion
-from game.sprites.enemy_bullet import EnemyBullet, HomingMissile
-from game.sprites.boss import Boss
-from game.sprites.item import Item
-from game.graphics.pixel_art import create_boss_surface_variant
-from game.sprites.sub_weapon_projectile import SubWeaponProjectile
-from game.systems.spawner import Spawner
-from game.systems.collision import (
-    check_bullet_enemy_collisions,
-    check_player_enemy_collisions,
-    check_player_powerup_collisions,
-    check_enemy_bullet_player_collisions,
-    check_sub_weapon_collisions,
-    check_player_item_collisions,
-    apply_gravity_bomb,
-)
+
+import pygame
+
 from game.graphics.hud import (
-    draw_hud,
-    draw_menu_screen,
-    draw_game_over_screen,
-    draw_help_screen,
-    draw_pause_screen,
-    draw_network_menu_screen,
-    draw_lobby_screen,
-    draw_room_screen,
-    draw_matchmaking_screen,
-    draw_connecting_screen,
-    draw_network_game_hud,
-    draw_network_game_over_screen,
-    draw_network_countdown_screen,
-    draw_disconnected_overlay,
-    draw_coop_game_over_screen,
     draw_boss_health_bar,
     draw_boss_warning,
-    draw_game_over_stats,
+    draw_connecting_screen,
+    draw_coop_game_over_screen,
+    draw_disconnected_overlay,
     draw_fade_overlay,
+    draw_game_over_screen,
+    draw_game_over_stats,
+    draw_help_screen,
     draw_hit_flash,
+    draw_hud,
     draw_laser_sweeps,
+    draw_lobby_screen,
+    draw_matchmaking_screen,
+    draw_menu_screen,
+    draw_network_countdown_screen,
+    draw_network_game_hud,
+    draw_network_menu_screen,
+    draw_pause_screen,
+    draw_room_screen,
 )
 from game.graphics.screen_shake import ScreenShake
+from game.settings import *
 from game.sounds.sound_manager import SoundManager
+from game.sprites.boss import Boss
+from game.sprites.bullet import Bullet
+from game.sprites.enemy_bullet import EnemyBullet, HomingMissile
+from game.sprites.explosion import Explosion
+from game.sprites.player import Player
+from game.sprites.sub_weapon_projectile import SubWeaponProjectile
+from game.state import GameState
+from game.systems.collision import (
+    apply_gravity_bomb,
+    check_bullet_enemy_collisions,
+    check_enemy_bullet_player_collisions,
+    check_player_enemy_collisions,
+    check_player_item_collisions,
+    check_player_powerup_collisions,
+    check_sub_weapon_collisions,
+)
+from game.systems.spawner import Spawner
 from network import get_client, has_network_support
 from network.protocol import DEFAULT_HOST, DEFAULT_PORT, NetworkEvent
 
@@ -77,6 +75,8 @@ class Game:
         self.running = True
         self.menu_selection = 0  # 0 = START GAME, 1 = NETWORK GAME, 2 = HELP, 3 = EXIT
         self.pause_selection = 0  # 0 = RESUME, 1 = QUIT TO MENU
+        # ── 帧计数器 & HUD 动效状态 ──
+        self._frame_count = 0
 
         # Sprite groups
         self.all_sprites = pygame.sprite.Group()
@@ -101,8 +101,26 @@ class Game:
         self.background = LevelBackgroundManager()
         self.screen_shake = ScreenShake()
 
+        # ── 粒子系统 ──
+        from game.graphics.particles import ParticleManager
+        self.particles = ParticleManager()
+
+        # ── BGM ──
+        from game.sounds.music_manager import MusicManager
+        self.music_manager = MusicManager(
+            volume=0.5,
+            muted=False,
+        )
+
+        # ── 从 settings.json 恢复音量和静音状态 ──
+        from game.settings_manager import load as load_settings
+        settings = load_settings()
+        self.music_manager.set_volume(settings.get("music_volume", 0.5))
+        self.music_manager.set_muted(settings.get("muted", False))
+        self.sound_manager.set_volume(settings.get("sfx_volume", 0.7))
+
         # ── 网络模块 ────────────────────────────────────────────────────
-        self.net_client: Optional["NetworkClient"] = None
+        self.net_client: NetworkClient | None = None
         # 联网菜单状态
         self.server_host = DEFAULT_HOST
         self.server_port = DEFAULT_PORT
@@ -171,7 +189,6 @@ class Game:
     def _register_network_callbacks(self):
         """注册网络事件回调"""
         # 会在每次状态切换时重新注册，以避免残留引用
-        pass
 
     def _on_connected(self, data):
         self.network_error_msg = ""
@@ -332,7 +349,7 @@ class Game:
 
     def run(self):
         while self.running:
-            dt = self.clock.tick(FPS)
+            self.clock.tick(FPS)
             # Process network events (must be called every frame)
             self._process_network_events()
             self.handle_events()
@@ -361,7 +378,24 @@ class Game:
             elif event.type == pygame.VIDEORESIZE:
                 self._handle_resize(event.w, event.h)
             elif event.type == pygame.KEYDOWN:
-                if self.state.is_menu():
+                # ── 全局键：M 静音、[/] 音量（在任何状态下生效）──
+                if event.key == pygame.K_m:
+                    self.music_manager.toggle_mute()
+                    from game.settings_manager import save
+                    save({"muted": self.music_manager.muted})
+                elif event.key == pygame.K_LEFTBRACKET:
+                    vol = max(0.0, self.music_manager.volume - 0.1)
+                    self.music_manager.set_volume(vol)
+                    self.sound_manager.set_volume(vol)
+                    from game.settings_manager import save
+                    save({"music_volume": vol, "sfx_volume": vol})
+                elif event.key == pygame.K_RIGHTBRACKET:
+                    vol = min(1.0, self.music_manager.volume + 0.1)
+                    self.music_manager.set_volume(vol)
+                    self.sound_manager.set_volume(vol)
+                    from game.settings_manager import save
+                    save({"music_volume": vol, "sfx_volume": vol})
+                elif self.state.is_menu():
                     self._handle_menu_key(event)
                 elif self.state.current == GameState.HELP:
                     self._handle_help_key(event)
@@ -386,9 +420,7 @@ class Game:
                     self._handle_network_game_over_key(event)
                 elif self.state.current == GameState.NETWORK_PLAYING:
                     self._handle_network_playing_key(event)
-                elif self.state.is_playing():
-                    self._handle_single_playing_key(event)
-                elif self.state.is_paused():
+                elif self.state.is_playing() or self.state.is_paused():
                     self._handle_single_playing_key(event)
 
     def _handle_menu_key(self, event):
@@ -533,8 +565,7 @@ class Game:
                 self.net_host_buffer += event.unicode
             else:
                 # Port: digits only
-                if event.unicode.isdigit():
-                    if len(self.net_port_buffer) < 6:
+                if event.unicode.isdigit() and len(self.net_port_buffer) < 6:
                         self.net_port_buffer += event.unicode
 
     # ── 大厅键盘处理 ──────────────────────────────────────────────────
@@ -665,6 +696,20 @@ class Game:
     # ── 帧更新 ────────────────────────────────────────────────────────
 
     def update(self):
+        self._frame_count += 1
+
+        # ── BGM 切换 ──
+        if self.state.current == GameState.MENU or self.state.current == GameState.HELP:
+            self.music_manager.play(MusicManager.TRACK_MENU)
+        elif self.state.current in (GameState.PLAYING, GameState.NETWORK_PLAYING,
+                                     GameState.PAUSED):
+            if self.boss_group.sprite and self.boss_group.sprite.alive():
+                self.music_manager.play(MusicManager.TRACK_BOSS)
+            else:
+                self.music_manager.play(MusicManager.TRACK_PLAY)
+        else:
+            self.music_manager.stop()
+
         # ── 画面过渡更新（在暂停/游戏结束等所有状态下运行）──
         if self.fade_state == "fade_out":
             self.fade_alpha += FADE_OUT_SPEED
@@ -705,6 +750,15 @@ class Game:
             self._handle_shooting()
             self.player.update(pygame.key.get_pressed())
             self.bullets_group.update()
+
+            # ── 引擎尾迹 ──
+            if self.player.alive() and self._frame_count % ENGINE_TRAIL_RATE == 0:
+                from game.graphics.particles import spawn_engine_trail
+                spawn_engine_trail(
+                    self.particles,
+                    self.player.rect.centerx,
+                    self.player.rect.bottom,
+                )
 
             # 为追踪弹设置敌人引用
             for bullet in self.bullets_group:
@@ -836,6 +890,24 @@ class Game:
                 self.shared_score += score
                 self.sound_manager.play("explosion")
                 self.screen_shake.shake(3.0)
+
+                # ── 击杀粒子 + 得分弹出 ──
+                if killed_info:
+                    from game.graphics.particles import (
+                        spawn_enemy_death,
+                        spawn_score_popup,
+                    )
+                    for eid, pts, ptype in killed_info:
+                        if self.explosions_group:
+                            last_exp = list(self.explosions_group)[-1]
+                            ex, ey = last_exp.rect.centerx, last_exp.rect.centery
+                        else:
+                            ex, ey = SCREEN_WIDTH // 2, SCREEN_HEIGHT // 2
+                        spawn_enemy_death(self.particles, ex, ey,
+                                          color=SPARK_COLOR_ENEMY)
+                        spawn_score_popup(self.particles, ex, ey,
+                                          f"+{pts}", color=(255, 255, 100))
+
                 # 合作模式：逐个通知伙伴我方杀敌（附带单个敌机分值+道具）
                 if is_coop and self.net_client and killed_info:
                     for eid, pts, ptype in killed_info:
@@ -843,8 +915,7 @@ class Game:
 
             # 战斗统计：击杀 + 最大连击
             self.game_stats["kills"] += len(killed_info)
-            if self.player.combo_count > self.game_stats["max_combo"]:
-                self.game_stats["max_combo"] = self.player.combo_count
+            self.game_stats["max_combo"] = max(self.game_stats["max_combo"], self.player.combo_count)
 
             # Power-up collection
             collected_type = check_player_powerup_collisions(self.player, self.powerups_group)
@@ -865,10 +936,20 @@ class Game:
                     self.player.apply_powerup(collected_type)
                     self.sound_manager.play("level_up")
 
+            # ── 道具拾取粒子 ──
+            if collected_type and hasattr(self, 'particles'):
+                from game.graphics.particles import spawn_pickup_ring
+                spawn_pickup_ring(self.particles, self.player.rect.centerx,
+                                  self.player.rect.centery)
+
             # ── 道具拾取碰撞 ──
             collected_item = check_player_item_collisions(self.player, self.items_group)
             if collected_item:
                 self.sound_manager.play("level_up")
+                if hasattr(self, 'particles'):
+                    from game.graphics.particles import spawn_pickup_ring
+                    spawn_pickup_ring(self.particles, self.player.rect.centerx,
+                                      self.player.rect.centery)
 
             hit = check_player_enemy_collisions(
                 self.player, self.enemies_group, self.explosions_group
@@ -909,6 +990,10 @@ class Game:
                 boss_hit_by = pygame.sprite.spritecollide(boss, self.bullets_group, False)
                 for bullet in boss_hit_by:
                     bullet_damage = getattr(bullet, 'damage', 1)
+                    # ── Boss 受击粒子 ──
+                    from game.graphics.particles import spawn_boss_hit
+                    spawn_boss_hit(self.particles,
+                                   bullet.rect.centerx, bullet.rect.centery)
                     destroyed = boss.take_damage(bullet_damage)
                     if not getattr(bullet, 'piercing', False):
                         bullet.kill()
@@ -934,6 +1019,8 @@ class Game:
                     break
 
             self.screen_shake.update()
+            # ── 粒子系统更新 ──
+            self.particles.update()
             # 网络对战：检测对手断线 → 暂停游戏显示断线提示
             if self.state.current == GameState.NETWORK_PLAYING and self.opponent_disconnected:
                 # 游戏暂停，等待用户按 ENTER
@@ -998,8 +1085,7 @@ class Game:
                     self.net_client.send_enemy_snapshot(enemy_list)
 
         # 合作模式：共享生命池逻辑
-        if self.state.current == GameState.NETWORK_PLAYING:
-            if self.shared_lives <= 0:
+        if self.state.current == GameState.NETWORK_PLAYING and self.shared_lives <= 0:
                 self._on_player_death()
 
         # 网络对战：检测对手断线
@@ -1155,6 +1241,10 @@ class Game:
         self.player.shoot_cooldown = cooldown
         self.player.is_firing = True
 
+        # ── 枪口火花 ──
+        from game.graphics.particles import spawn_muzzle_flash
+        spawn_muzzle_flash(self.particles, self.player.rect.centerx, self.player.rect.top)
+
         count = config["count"]
         spread = config["spread_angle"]
 
@@ -1251,7 +1341,7 @@ class Game:
 
     def _apply_item_effect(self, effect):
         """Apply the effect of a consumed item."""
-        etype = effect.get("type")
+        effect.get("type")
 
         if effect.get("clear_enemies"):
             # Full screen bomb: clear all enemies and enemy bullets
@@ -1287,8 +1377,12 @@ class Game:
         current = self.state.current
 
         if current == GameState.MENU:
-            # 4-item menu: START, NETWORK GAME, HELP, EXIT
-            draw_menu_screen(self.virtual_surf, self.menu_selection)
+            # Ensure menu particles exist
+            self.background.init_menu_particles()
+            self.background.update_menu_particles()
+            draw_menu_screen(self.virtual_surf, self.menu_selection,
+                             particles=None, frame_count=self._frame_count)
+            self.background.draw_menu_particles(self.virtual_surf)
 
         elif current == GameState.HELP:
             draw_help_screen(self.virtual_surf)
@@ -1430,7 +1524,16 @@ class Game:
                 self.spawner.current_level,
                 self.player.active_powerups,
                 player=self.player,
+                muted=self.music_manager.muted,
+                particles=self.particles,
             )
+            # ── 浮动得分文字 ──
+            from game.graphics.hud import draw_combo_popup, draw_score_popups
+            draw_score_popups(self.virtual_surf, self.particles)
+            # ── 连击弹出 ──
+            if self.player.combo_tier > 0 and self.player.combo_buff_timer > 0:
+                draw_combo_popup(self.virtual_surf, self.player.combo_tier,
+                                 COMBO_POPUP_LIFETIME - self.player.combo_buff_timer)
             # Boss 血条
             if self.boss_group.sprite:
                 draw_boss_health_bar(self.virtual_surf, self.boss_group.sprite)

@@ -1,8 +1,10 @@
 # game/sprites/option.py
-import pygame
 import math
-from game.settings import *
+
+import pygame
+
 from game.graphics.pixel_art import create_option_surface
+from game.settings import *
 
 
 class Option(pygame.sprite.Sprite):

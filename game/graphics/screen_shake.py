@@ -1,7 +1,6 @@
 # game/graphics/screen_shake.py
-import pygame
-import random
 import math
+import random
 
 
 class ScreenShake:

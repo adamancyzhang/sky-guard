@@ -1,5 +1,6 @@
 # game/graphics/pixel_art.py
 import pygame
+
 from game.settings import *
 
 # Pixel art uses 0/1 matrices: "1" = fill color, "0" = transparent
@@ -58,8 +59,8 @@ TANK_ENEMY_MATRIX = [
 
 def scale_matrix(matrix, scale):
     """Scale a pixel matrix to a target size."""
-    rows = len(matrix)
-    cols = len(matrix[0])
+    len(matrix)
+    len(matrix[0])
     scaled = []
     for row in matrix:
         scaled_row = ""
@@ -103,7 +104,7 @@ def create_enemy_surface(enemy_type, scale=3):
 
 def create_boss_surface(scale=3):
     """Create the Boss enemy Surface (larger, menacing)."""
-    from game.settings import BOSS_MATRIX, BOSS_COLOR, SCREEN_HEIGHT
+    from game.settings import BOSS_COLOR, BOSS_MATRIX
     surf = pygame.Surface((16 * scale, 16 * scale), pygame.SRCALPHA)
     for y, row in enumerate(BOSS_MATRIX):
         for x, ch in enumerate(row):
@@ -122,7 +123,7 @@ def create_boss_surface(scale=3):
 
 def create_boss_surface_variant(scale=3, tint_color=None, pulse=0):
     """Create Boss surface with color tint and pulse animation."""
-    from game.settings import BOSS_MATRIX, SCREEN_HEIGHT
+    from game.settings import BOSS_MATRIX
     actual_scale = scale + pulse
     surf = pygame.Surface((16 * actual_scale, 16 * actual_scale), pygame.SRCALPHA)
     base_color = tint_color or (200, 50, 200)

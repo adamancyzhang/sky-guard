@@ -1,8 +1,10 @@
 # game/sprites/bullet.py
-import pygame
 import math
-from game.settings import *
+
+import pygame
+
 from game.graphics.pixel_art import create_weapon_bullet
+from game.settings import *
 
 
 class Bullet(pygame.sprite.Sprite):
