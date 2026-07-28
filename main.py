@@ -30,6 +30,7 @@ from game.graphics.hud import (
 )
 from game.graphics.screen_shake import ScreenShake
 from game.settings import *
+from game.sounds.music_manager import MusicManager
 from game.sounds.sound_manager import SoundManager
 from game.sprites.boss import Boss
 from game.sprites.bullet import Bullet
