@@ -28,6 +28,7 @@ from game.graphics.hud import (
     draw_menu_screen,
     draw_game_over_screen,
     draw_help_screen,
+    draw_pause_screen,
     draw_network_menu_screen,
     draw_lobby_screen,
     draw_room_screen,
@@ -67,6 +68,7 @@ class Game:
         self.state = GameState()
         self.running = True
         self.menu_selection = 0  # 0 = START GAME, 1 = NETWORK GAME, 2 = HELP, 3 = EXIT
+        self.pause_selection = 0  # 0 = RESUME, 1 = QUIT TO MENU
 
         # Sprite groups
         self.all_sprites = pygame.sprite.Group()
@@ -353,6 +355,8 @@ class Game:
                     self._handle_network_playing_key(event)
                 elif self.state.is_playing():
                     self._handle_single_playing_key(event)
+                elif self.state.is_paused():
+                    self._handle_single_playing_key(event)
 
     def _handle_menu_key(self, event):
         menu_count = 4  # START, NETWORK, HELP, EXIT
@@ -397,8 +401,29 @@ class Game:
             self.running = False
 
     def _handle_single_playing_key(self, event):
-        if event.key == pygame.K_ESCAPE:
-            self.running = False
+        if event.key == pygame.K_ESCAPE or event.key == pygame.K_p:
+            if self.state.is_paused():
+                # Resume
+                self.state.set(GameState.PLAYING)
+                self.pause_selection = 0
+            else:
+                # Pause
+                self.state.set(GameState.PAUSED)
+                self.pause_selection = 0
+        elif self.state.is_paused():
+            if event.key == pygame.K_UP or event.key == pygame.K_w:
+                self.pause_selection = (self.pause_selection - 1) % 2
+            elif event.key == pygame.K_DOWN or event.key == pygame.K_s:
+                self.pause_selection = (self.pause_selection + 1) % 2
+            elif event.key == pygame.K_RETURN:
+                if self.pause_selection == 0:
+                    # Resume
+                    self.state.set(GameState.PLAYING)
+                    self.pause_selection = 0
+                else:
+                    # Quit to menu
+                    self._cleanup_game_state()
+                    self.state.set(GameState.MENU)
 
     def _handle_network_playing_key(self, event):
         if self.opponent_disconnected:
@@ -537,6 +562,7 @@ class Game:
     def _start_game(self):
         """Reset and start a new single-player game."""
         self.state.set(GameState.PLAYING)
+        self.pause_selection = 0
         self._reset_game_state()
 
     def _start_network_game(self):
@@ -569,6 +595,22 @@ class Game:
         self.background.switch_to_level(0)
         self.background.set_boss_mode(False)
 
+    def _cleanup_game_state(self):
+        """Clean up game state when quitting to menu (pause)."""
+        self.bullets_group.empty()
+        self.enemies_group.empty()
+        self.explosions_group.empty()
+        self.powerups_group.empty()
+        self.enemy_bullets_group.empty()
+        self.boss_group.empty()
+        self.sub_weapons_group.empty()
+        self.items_group.empty()
+        self.player.reset()
+        self.spawner.reset()
+        self.spawner.on_level_up = self._on_level_up
+        self.background.switch_to_level(0)
+        self.background.set_boss_mode(False)
+
     def _on_level_up(self, level):
         """Called when spawner detects level change."""
         self.background.switch_to_level(level)
@@ -576,6 +618,10 @@ class Game:
     # ── 帧更新 ────────────────────────────────────────────────────────
 
     def update(self):
+        # ── 暂停状态：跳过所有游戏逻辑 ──
+        if self.state.is_paused():
+            return
+
         # ── 网络倒计时 ──
         if self.state.current == GameState.NETWORK_COUNTDOWN:
             elapsed = time.time() - self.countdown_timer
@@ -651,7 +697,7 @@ class Game:
                 self.screen_shake.shake(8.0)
 
             # Boss update + shooting
-            if self.boss_group.sprite and self.boss_group.sprite.is_alive():
+            if self.boss_group.sprite and self.boss_group.sprite.alive():
                 self.boss_group.update()
                 boss = self.boss_group.sprite
                 if boss.should_shoot():
@@ -746,7 +792,7 @@ class Game:
                     self._on_player_death()
 
             # Bullet-Boss collision
-            if self.boss_group.sprite and self.boss_group.sprite.is_alive():
+            if self.boss_group.sprite and self.boss_group.sprite.alive():
                 boss = self.boss_group.sprite
                 boss_hit_by = pygame.sprite.spritecollide(boss, self.bullets_group, False)
                 for bullet in boss_hit_by:
@@ -1186,7 +1232,7 @@ class Game:
             if self.opponent_disconnected:
                 draw_disconnected_overlay(self.virtual_surf)
 
-        elif current == GameState.PLAYING:
+        elif current == GameState.PLAYING or current == GameState.PAUSED:
             self.background.draw(self.virtual_surf)
             self.enemies_group.draw(self.virtual_surf)
             self.bullets_group.draw(self.virtual_surf)
@@ -1210,6 +1256,8 @@ class Game:
                 self.player.active_powerups,
                 player=self.player,
             )
+            if current == GameState.PAUSED:
+                draw_pause_screen(self.virtual_surf, self.pause_selection)
 
         # Scale virtual surface to display window — apply screen shake offset
         shake_dx, shake_dy = self.screen_shake.get_offset()

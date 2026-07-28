@@ -460,6 +460,58 @@ def draw_item_hud(screen, player):
 
 
 # ══════════════════════════════════════════════════════════════════════
+# 暂停界面
+# ══════════════════════════════════════════════════════════════════════
+
+def draw_pause_screen(screen, selected):
+    """Draw a semi-transparent pause overlay with Resume / Quit options."""
+    from game.l10n import L10n
+    _ = L10n._
+
+    # Semi-transparent overlay
+    overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT), pygame.SRCALPHA)
+    overlay.fill((0, 0, 0, PAUSE_OVERLAY_ALPHA))
+    screen.blit(overlay, (0, 0))
+
+    # Title
+    title_font = _get_font(56, bold=True)
+    title = title_font.render(_("pause_title"), True, WHITE)
+    title_rect = title.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT // 3))
+    screen.blit(title, title_rect)
+
+    # Menu items
+    items = [_("pause_resume"), _("pause_quit")]
+    item_font_big = _get_font(36, bold=True)
+    item_font_small = _get_font(30)
+
+    start_y = SCREEN_HEIGHT // 2 - 10
+    for i, item in enumerate(items):
+        if i == selected:
+            color = YELLOW
+            prefix = "> "
+            fnt = item_font_big
+        else:
+            color = WHITE
+            prefix = "  "
+            fnt = item_font_small
+
+        surf = fnt.render(prefix + item, True, color)
+        rect = surf.get_rect(center=(SCREEN_WIDTH // 2, start_y + i * 55))
+        screen.blit(surf, rect)
+
+    # Hint
+    hint_font = _get_font(17)
+    hint = hint_font.render(_("menu_hint"), True, DARK_GRAY)
+    hint_rect = hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 60))
+    screen.blit(hint, hint_rect)
+
+    # Esc hint
+    esc_hint = hint_font.render(_("controls_pause"), True, DARK_GRAY)
+    esc_rect = esc_hint.get_rect(center=(SCREEN_WIDTH // 2, SCREEN_HEIGHT - 38))
+    screen.blit(esc_hint, esc_rect)
+
+
+# ══════════════════════════════════════════════════════════════════════
 # 网络模式界面
 # ══════════════════════════════════════════════════════════════════════
 

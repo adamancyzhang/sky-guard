@@ -374,7 +374,10 @@ WEAPON_COLORS = {
 # 道具系统配置 (Item System)
 # ══════════════════════════════════════════════════════════════════════
 
-# 道具掉落率（与常规 PowerUp 掉落独立计算）
+# Pause system
+PAUSE_OVERLAY_ALPHA = 160      # transparency of pause overlay
+
+# Item system config
 ITEM_DROP_CHANCE = 0.06        # 6% chance per enemy kill
 ITEM_FALL_SPEED = 2            # fall speed (same as powerups)
 

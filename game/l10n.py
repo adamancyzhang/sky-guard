@@ -26,7 +26,7 @@ _STRINGS = {
         "controls_weapon": "Q/E  -  Switch weapon",
         "controls_charge": "Shift  -  Charge shot (hold)",
         "controls_sub": "X  -  Sub-weapon",
-        "controls_pause": "ESC  -  Quit game / Back",
+        "controls_pause": "Esc/P  -  Pause / Resume",
         "items_title": "=== ITEMS ===",
         "powerups_title": "=== POWER-UPS ===",
         "item_shield": "Shield  -  Invincible for 5s (blue aura)",
@@ -90,6 +90,11 @@ _STRINGS = {
         "item_repair": "Repair  -  Restore 1 life",
         "item_score_boost": "Score Boost  -  2x score for 10s",
         "item_gravity_bomb": "Gravity Bomb  -  Pull + damage all enemies",
+
+        # ── Pause System (en) ──
+        "pause_title": "PAUSED",
+        "pause_resume": "RESUME",
+        "pause_quit": "QUIT TO MENU",
     },
     "zh": {
         "title": "天穹守卫",
@@ -115,7 +120,7 @@ _STRINGS = {
         "controls_weapon": "Q/E  —  切换武器",
         "controls_charge": "Shift  —  蓄力射击",
         "controls_sub": "X  —  子武器",
-        "controls_pause": "ESC  —  退出 / 返回",
+        "controls_pause": "Esc/P  —  暂停 / 继续",
         "items_title": "=== 道具系统 ===",
         "powerups_title": "=== 道具说明 ===",
         "item_shield": "护盾  —  5秒无敌（蓝色光环）",
@@ -179,6 +184,11 @@ _STRINGS = {
         "item_repair": "修复  —  恢复1条生命",
         "item_score_boost": "分数增益  —  10秒内得分×2",
         "item_gravity_bomb": "重力炸弹  —  吸引+伤害全部敌人",
+
+        # ── 暂停系统 (zh) ──
+        "pause_title": "已暂停",
+        "pause_resume": "继续游戏",
+        "pause_quit": "返回主菜单",
     },
 }
 

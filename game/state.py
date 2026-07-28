@@ -4,6 +4,7 @@ class GameState:
     """Finite state machine for game state management."""
     MENU = "menu"
     PLAYING = "playing"
+    PAUSED = "paused"
     GAME_OVER = "game_over"
     HELP = "help"
 
@@ -31,6 +32,9 @@ class GameState:
     def is_playing(self):
         """Return True for any gameplay state (single-player or network)"""
         return self.current in (GameState.PLAYING, GameState.NETWORK_PLAYING)
+
+    def is_paused(self):
+        return self.current == GameState.PAUSED
 
     def is_game_over(self):
         return self.current == GameState.GAME_OVER
